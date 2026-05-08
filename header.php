@@ -11,7 +11,7 @@ if (!isset($page_title)) {
     <title><?= e($page_title) ?></title>
     <meta name="description" content="Elawaady XDigital Platform - متجر خدمات رقمية، سوشيال ميديا، توثيق، حسابات جاهزة، AI، Microsoft 365، اشتراكات، وساطة آمنة وماركت بليس.">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
