@@ -10,12 +10,13 @@ on:
   pull_request:
     paths:
       - 'backend/**'
+      - '.github/workflows/backend-safety.yml'
 
 permissions:
   contents: read
 
 jobs:
-  safety:
+  recovery-bundle:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +25,14 @@ jobs:
           python-version: '3.11'
       - name: Inspect bundled backend recovery payload
         run: python backend/source_bundle_inspect.py
+
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Compile deployment entrypoints
         run: |
           python -m py_compile backend/passenger_wsgi.py backend/staging_fallback.py backend/init_db.py backend/production_check.py
