@@ -8,7 +8,7 @@ if (!isset($page_title)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#6d28d9">
+    <meta name="theme-color" content="#09010f">
     <title><?= e($page_title) ?></title>
     <meta name="description" content="Elawaady XDigital Platform - متجر خدمات ومنتجات رقمية، اشتراكات، ذكاء اصطناعي، سوشيال ميديا، توثيق، بطاقات وألعاب.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,6 +16,7 @@ if (!isset($page_title)) {
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="storefront.css">
+    <link rel="stylesheet" href="motion.css">
 </head>
 <body>
 <div class="announcement-bar">
