@@ -18,6 +18,7 @@ if (!isset($page_title)) {
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="storefront.css">
     <link rel="stylesheet" href="exd-media.css">
+    <link rel="stylesheet" href="exd-sections.css">
     <link rel="stylesheet" href="motion.css">
 </head>
 <body>
