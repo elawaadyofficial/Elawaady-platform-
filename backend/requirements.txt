@@ -1,0 +1,10 @@
+# Elawaady XDigital Platform - Backend Dependencies
+# Optimized for Python 3.10+ (Namecheap Stellar Plus / cPanel Passenger)
+gunicorn>=21.2.0
+argon2-cffi>=23.1.0
+cryptography>=42.0.0
+pymysql>=1.1.0
+psycopg2-binary>=2.9.9
+requests>=2.31.0
+python-dotenv>=1.0.0
+Pillow>=10.0.0
