@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "source": "user-provided Dashboard.zip audited read-only",
+  "scope": "legacy dashboard recovery planning only",
+  "production_execution_allowed": false,
+  "generated_from": {
+    "legacy_project_files": 30,
+    "legacy_php_files": 24,
+    "legacy_page_modules": 17,
+    "legacy_schema_tables": [
+      "categories",
+      "service_gallery",
+      "services",
+      "users"
+    ],
+    "current_storefront_tables": [
+      "store_categories",
+      "store_subcategories",
+      "store_services"
+    ]
+  },
+  "global_findings": [
+    "The legacy SQL dump is incomplete relative to the dashboard UI surface.",
+    "Current database.sql is a bootstrap schema and contains destructive DROP TABLE statements, so it must not be used as a production migration.",
+    "Legacy db.php credentials and raw PDO error output must not be ported.",
+    "Modules marked static_ui_only need reconstructed data contracts before backend integration."
+  ],
+  "modules": [
+    {
+      "module": "auth/login.php",
+      "legacy_runtime_status": "database_backed",
+      "legacy_tables": ["users"],
+      "verified_operations": ["SELECT user by username or email"],
+      "current_store_mapping": "missing",
+      "gate": 1,
+      "next_requirement": "Define environment-backed auth store, password verification policy, session lifecycle, role model and rate limiting before porting."
+    },
+    {
+      "module": "auth/register.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 1,
+      "next_requirement": "Define account types user/merchant/supplier and persistence contract before wiring registration."
+    },
+    {
+      "module": "auth/fix_pass.php",
+      "legacy_runtime_status": "database_backed_unsafe_utility",
+      "legacy_tables": ["users"],
+      "verified_operations": ["UPDATE users.password by email"],
+      "current_store_mapping": "missing",
+      "gate": 1,
+      "next_requirement": "Do not port as-is; replace with tokenized password reset and modern password hashing."
+    },
+    {
+      "module": "pages/permissions.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 1,
+      "next_requirement": "Create explicit roles/permissions contract before any admin write route is exposed."
+    },
+    {
+      "module": "pages/categories.php",
+      "legacy_runtime_status": "database_backed",
+      "legacy_tables": ["categories"],
+      "verified_operations": ["INSERT category", "UPDATE category", "toggle status", "DELETE category and children", "SELECT categories"],
+      "current_store_mapping": "partial",
+      "current_tables": ["store_categories", "store_subcategories"],
+      "gate": 2,
+      "next_requirement": "Map legacy parent_id hierarchy to current split category/subcategory tables without destructive conversion."
+    },
+    {
+      "module": "pages/services.php",
+      "legacy_runtime_status": "database_backed",
+      "legacy_tables": ["services", "categories"],
+      "verified_operations": ["SELECT services with category/subcategory joins", "toggle service active state", "DELETE service"],
+      "current_store_mapping": "partial",
+      "current_tables": ["store_services", "store_categories", "store_subcategories"],
+      "gate": 2,
+      "next_requirement": "Create a field-by-field service compatibility map; current store_services lacks most legacy commercial, media, SEO, mediation and supplier fields."
+    },
+    {
+      "module": "pages/add_service.php",
+      "legacy_runtime_status": "database_backed",
+      "legacy_tables": ["services", "service_gallery", "categories"],
+      "verified_operations": ["SELECT category hierarchy", "INSERT service", "INSERT service gallery images"],
+      "current_store_mapping": "partial",
+      "current_tables": ["store_services", "store_categories", "store_subcategories"],
+      "gate": 2,
+      "next_requirement": "Add an isolated additive schema proposal for gallery/media and advanced service fields before porting the form."
+    },
+    {
+      "module": "pages/orders.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Reconstruct order schema, statuses, line items, payment references, ownership and audit trail before implementation."
+    },
+    {
+      "module": "pages/merchant-orders.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define merchant-to-order visibility and authorization contract after core orders exist."
+    },
+    {
+      "module": "pages/merchant-catalog.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define merchant catalog assignment/pricing model instead of copying static UI data."
+    },
+    {
+      "module": "pages/merchant-profile.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define merchant profile fields and identity/contact verification rules."
+    },
+    {
+      "module": "pages/merchants.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define merchant entity, account relation, status and commission fields."
+    },
+    {
+      "module": "pages/suppliers.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define supplier entity, contact data, status, settlement and service ownership model."
+    },
+    {
+      "module": "pages/supplier-dashboard.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Build only after supplier, service assignment, order and earnings contracts exist."
+    },
+    {
+      "module": "pages/supplier-services.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define supplier service ownership/cost/availability contract and admin approval workflow."
+    },
+    {
+      "module": "pages/supplier-earnings.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define immutable earnings ledger and settlement model; do not infer balances from static UI."
+    },
+    {
+      "module": "pages/supplier-profile.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 3,
+      "next_requirement": "Define supplier profile and payout/contact fields after identity model is settled."
+    },
+    {
+      "module": "pages/carousel.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 4,
+      "next_requirement": "Define carousel/banner entity, placement, media, locale, ordering, visibility window and active state."
+    },
+    {
+      "module": "pages/settings.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 4,
+      "next_requirement": "Split settings into typed namespaces and keep secrets outside database/source-controlled settings."
+    },
+    {
+      "module": "pages/chatbot.php",
+      "legacy_runtime_status": "static_ui_only",
+      "legacy_tables": [],
+      "verified_operations": [],
+      "current_store_mapping": "missing",
+      "gate": 4,
+      "next_requirement": "Define bot configuration and conversation/action boundaries separately from storefront data."
+    }
+  ],
+  "next_concrete_action": "Create the Gate 2 service compatibility map comparing legacy services/service_gallery fields against store_services and propose additive, staging-only schema changes."
+}
