@@ -1,0 +1,51 @@
+name: Backend production safety gate
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-safety.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+
+permissions:
+  contents: read
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile deployment entrypoints
+        run: |
+          python -m py_compile backend/passenger_wsgi.py backend/init_db.py backend/production_check.py
+      - name: Reject committed real environment files
+        run: |
+          test ! -f backend/.env
+          test -f backend/.env.example
+      - name: Reject obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|api[_-]?key[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{20,}|password[[:space:]]*=[[:space:]]*[^<][^ ]{12,})' backend --exclude='.env.example' --exclude='*.md' --exclude='*.b64'
+      - name: Verify staging is isolated from live domain
+        run: |
+          grep -q 'e-network.net' backend/.env.example
+          ! grep -q '^APP_URL=https://elawaady.com' backend/.env.example
+      - name: Exercise production preflight with safe dummy MySQL config
+        env:
+          APP_ENV: production
+          APP_URL: https://e-network.net
+          DB_CONNECTION: mysql
+          DB_HOST: localhost
+          DB_PORT: '3306'
+          DB_USERNAME: ci_dummy_user
+          DB_PASSWORD: ci_dummy_password_not_real
+          DB_DATABASE: ci_dummy_database
+          SESSION_SECRET: ci_session_secret_abcdefghijklmnopqrstuvwxyz012345
+          ENCRYPTION_KEY: ci_encrypt_secret_abcdefghijklmnopqrstuvwxyz012345
+        run: python backend/production_check.py
