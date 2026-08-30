@@ -1,0 +1,17 @@
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+config.local.php
+
+# Runtime / logs
+*.log
+logs/
+tmp/
+cache/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
