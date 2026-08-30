@@ -49,10 +49,11 @@ def require_runtime_dependencies() -> None:
 
 def main() -> int:
     env = os.getenv("APP_ENV", "").strip().lower()
+    app_url = os.getenv("APP_URL", "").strip().lower().rstrip("/")
     db = os.getenv("DB_CONNECTION", "").strip().lower()
     session_secret = os.getenv("SESSION_SECRET", "")
     encryption_key = os.getenv("ENCRYPTION_KEY", "")
-    cors = [x.strip() for x in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if x.strip()]
+    cors = [x.strip().lower() for x in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if x.strip()]
 
     if env not in {"staging", "production"}:
         fail("APP_ENV must be staging or production")
@@ -66,10 +67,18 @@ def main() -> int:
         fail("DB_HOST is required")
     if not os.getenv("DB_USERNAME") or not os.getenv("DB_PASSWORD") or not os.getenv("DB_DATABASE"):
         fail("DB_USERNAME, DB_PASSWORD and DB_DATABASE are required")
-    if any("elawaady.com" in origin for origin in cors):
-        fail("Live elawaady.com must not be enabled during staging")
-    if not any("e-network.net" in origin for origin in cors):
-        fail("Staging CORS must include e-network.net")
+
+    if env == "staging":
+        if not app_url:
+            fail("APP_URL is required for staging")
+        if "elawaady.com" in app_url:
+            fail("Live elawaady.com must never be used as the staging APP_URL")
+        if "e-network.net" not in app_url:
+            fail("Staging APP_URL must use e-network.net")
+        if any("elawaady.com" in origin for origin in cors):
+            fail("Live elawaady.com must not be enabled during staging")
+        if not any("e-network.net" in origin for origin in cors):
+            fail("Staging CORS must include e-network.net")
 
     require_backend_tree()
     require_runtime_dependencies()
