@@ -1,0 +1,355 @@
+/* ==========================================================================
+   EXD — Elawaady XDigital
+   exd-tokens.css · Design tokens + typography foundation
+   --------------------------------------------------------------------------
+   PHASE 0. This file is ADDITIVE ONLY. It introduces new token names and the
+   @font-face stack. It deliberately does NOT redefine any variable already
+   owned by style.css / storefront.css / motion.css, so loading it changes
+   nothing visually except the typeface.
+
+   Load order (header.php):
+       exd-tokens.css  →  style.css  →  storefront.css  →  motion.css
+
+   Migration path (later phases, one component at a time — never big-bang):
+       style.css       stays Legacy/base compatibility  (internal pages)
+       storefront.css  becomes Layout/Components
+       motion.css      becomes Animation/Motion only
+       exd-tokens.css  becomes the single source for colour/space/type/motion
+
+   Legacy variables still owned elsewhere — do not redeclare here:
+       storefront.css : --exd-purple --exd-purple-2 --exd-ink --exd-muted
+                        --exd-bg --exd-card --exd-line --exd-radius --exd-shadow
+       motion.css     : --exd-night --exd-night-2 --exd-panel --exd-panel-2
+                        --exd-violet --exd-pink --exd-orange --exd-yellow --exd-glow
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. TYPEFACE — The Year of Handicrafts (خط عام الحرف اليدوية)
+   --------------------------------------------------------------------------
+   Source archive: "خط عام الحرف اليدوية 2025.rar" (project Google Drive).
+   Shipped as subsetted WOFF2 (Arabic + Latin + digits + punctuation).
+   Arabic shaping features verified intact: init medi fina rlig ccmp liga
+   salt ss01 ss02 — 809 glyphs subset to 713, no shaping glyph dropped.
+
+   All five weights are declared. Browsers fetch ONLY the weights actually
+   rendered, so declaring the full family costs no bandwidth. SemiBold (600)
+   is the brand weight and is the only one preloaded in header.php.
+   ========================================================================== */
+
+@font-face {
+    font-family: "The Year of Handicrafts";
+    src: url("assets/fonts/TheYearofHandicrafts-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "The Year of Handicrafts";
+    src: url("assets/fonts/TheYearofHandicrafts-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* SemBd — the EXD brand weight. */
+@font-face {
+    font-family: "The Year of Handicrafts";
+    src: url("assets/fonts/TheYearofHandicrafts-SemiBold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "The Year of Handicrafts";
+    src: url("assets/fonts/TheYearofHandicrafts-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "The Year of Handicrafts";
+    src: url("assets/fonts/TheYearofHandicrafts-Black.woff2") format("woff2");
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+
+:root {
+
+    /* ======================================================================
+       2. TYPOGRAPHY
+       ====================================================================== */
+
+    /* Global family. Cairo remains ONLY as a technical fallback if the woff2
+       files fail to load — it is not part of the design system. */
+    --exd-font: "The Year of Handicrafts", "Cairo", "Segoe UI", system-ui,
+                -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --exd-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo,
+                     Consolas, monospace;
+
+    --exd-fw-regular: 400;
+    --exd-fw-medium: 500;
+    --exd-fw-semibold: 600;   /* SemBd — brand weight */
+    --exd-fw-bold: 700;
+    --exd-fw-black: 900;
+
+    /* Fluid scale: min at 360px, max at 1440px. */
+    --exd-fs-xs: clamp(11px, 0.68rem + 0.1vw, 12px);
+    --exd-fs-sm: clamp(12px, 0.72rem + 0.2vw, 14px);
+    --exd-fs-base: clamp(14px, 0.82rem + 0.25vw, 16px);
+    --exd-fs-md: clamp(15px, 0.86rem + 0.35vw, 18px);
+    --exd-fs-lg: clamp(18px, 1rem + 0.6vw, 22px);
+    --exd-fs-xl: clamp(21px, 1.1rem + 1.1vw, 30px);
+    --exd-fs-2xl: clamp(26px, 1.2rem + 2vw, 40px);
+    --exd-fs-3xl: clamp(32px, 1.3rem + 3.4vw, 62px);
+
+    --exd-lh-tight: 1.14;
+    --exd-lh-snug: 1.35;
+    --exd-lh-base: 1.7;
+
+    --exd-ls-wide: 0.06em;
+    --exd-ls-eyebrow: 0.18em;
+
+
+    /* ======================================================================
+       3. BRAND COLOUR RAMPS
+       Black → very dark purple → deep purple → electric violet →
+       magenta/pink → orange → gold. The full EXD identity spectrum.
+       ====================================================================== */
+
+    --exd-purple-950: #0b0316;
+    --exd-purple-900: #150726;
+    --exd-purple-800: #1e0a37;
+    --exd-purple-700: #2b0f4f;
+    --exd-purple-600: #3b0764;
+    --exd-purple-500: #4c1d95;   /* deep purple  */
+    --exd-purple-400: #6d28d9;
+    --exd-violet-500: #8b2cf5;   /* electric violet — core brand */
+    --exd-violet-400: #a855f7;
+    --exd-violet-300: #c96cff;
+    --exd-violet-200: #d8b4fe;
+
+    --exd-magenta-600: #c026a3;
+    --exd-magenta-500: #e63ea9;
+    --exd-magenta-400: #ff5cab;
+    --exd-pink-300: #ff8fd0;
+
+    --exd-orange-600: #e05e00;
+    --exd-orange-500: #ff7a18;   /* logo accent orange */
+    --exd-orange-400: #ff9a1f;
+    --exd-gold-500: #ffd31a;
+    --exd-gold-400: #ffe31c;
+
+    /* Metallic — sampled from the EXD logo mark. */
+    --exd-metal-hi: #f4f6f8;
+    --exd-metal-mid: #b8bfc7;
+    --exd-metal-lo: #6e767f;
+    --exd-metal-shadow: #2b3138;
+
+
+    /* ======================================================================
+       4. SURFACES
+       ====================================================================== */
+
+    --exd-bg-base: #030007;      /* page floor, deepest black          */
+    --exd-bg-deep: #080211;      /* body gradient end                  */
+    --exd-bg-raise: #0d0618;     /* raised block                       */
+    --exd-bg-panel: #160b29;     /* card / panel                       */
+    --exd-bg-panel-2: #21103b;   /* hovered / elevated panel           */
+    --exd-bg-inset: #11031f;     /* wells, carousel interiors          */
+
+    --exd-fg: #ffffff;
+    --exd-fg-soft: rgba(255, 255, 255, 0.82);
+    --exd-fg-muted: #9d91aa;
+    --exd-fg-dim: #6f6879;
+
+    --exd-border: rgba(255, 255, 255, 0.08);
+    --exd-border-strong: rgba(255, 255, 255, 0.15);
+    --exd-border-brand: rgba(196, 112, 255, 0.22);
+    --exd-border-accent: rgba(255, 122, 24, 0.24);
+
+
+    /* ======================================================================
+       5. GLASSMORPHISM
+       ====================================================================== */
+
+    --exd-glass-1: linear-gradient(180deg, rgba(255, 255, 255, 0.10),
+                                            rgba(255, 255, 255, 0.035));
+    --exd-glass-2: linear-gradient(180deg, rgba(29, 13, 51, 0.94),
+                                            rgba(16, 7, 30, 0.94));
+    --exd-glass-3: linear-gradient(145deg, rgba(138, 44, 245, 0.24),
+                                            rgba(65, 13, 117, 0.16));
+    --exd-glass-border: rgba(255, 255, 255, 0.14);
+    --exd-glass-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    --exd-glass-blur: blur(18px) saturate(140%);
+    --exd-glass-blur-sm: blur(10px) saturate(125%);
+
+
+    /* ======================================================================
+       6. GRADIENTS
+       ====================================================================== */
+
+    /* The signature EXD sweep — violet → magenta → orange → gold. */
+    --exd-grad-brand: linear-gradient(90deg, var(--exd-violet-500),
+                                             var(--exd-magenta-500),
+                                             var(--exd-orange-500),
+                                             var(--exd-gold-500));
+    --exd-grad-royal: linear-gradient(135deg, var(--exd-purple-600),
+                                              var(--exd-violet-500),
+                                              var(--exd-violet-400));
+    --exd-grad-ember: linear-gradient(135deg, var(--exd-orange-500),
+                                              var(--exd-gold-500));
+    --exd-grad-metal: linear-gradient(145deg, var(--exd-metal-hi) 0%,
+                                              var(--exd-metal-mid) 38%,
+                                              var(--exd-metal-lo) 62%,
+                                              var(--exd-metal-hi) 100%);
+    --exd-grad-night: linear-gradient(180deg, var(--exd-bg-deep) 0%,
+                                              var(--exd-bg-base) 100%);
+    /* Rotating conic used behind hero / feature panels. */
+    --exd-grad-aurora: conic-gradient(from 180deg at 50% 50%,
+                                      transparent,
+                                      rgba(139, 44, 245, 0.18),
+                                      transparent,
+                                      rgba(255, 122, 24, 0.14),
+                                      transparent);
+
+
+    /* ======================================================================
+       7. NEON GLOW
+       ====================================================================== */
+
+    --exd-glow-violet: 0 0 34px rgba(139, 44, 245, 0.30);
+    --exd-glow-violet-lg: 0 0 68px rgba(139, 44, 245, 0.24);
+    --exd-glow-magenta: 0 0 30px rgba(230, 62, 169, 0.30);
+    --exd-glow-orange: 0 0 28px rgba(255, 122, 24, 0.32);
+    --exd-glow-gold: 0 0 26px rgba(255, 211, 26, 0.30);
+    --exd-glow-soft: 0 0 22px rgba(196, 112, 255, 0.14);
+
+
+    /* ======================================================================
+       8. ELEVATION
+       ====================================================================== */
+
+    --exd-shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.28);
+    --exd-shadow-md: 0 16px 42px rgba(0, 0, 0, 0.32);
+    --exd-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.38);
+    --exd-shadow-xl: 0 35px 90px rgba(0, 0, 0, 0.50);
+    --exd-shadow-brand: 0 22px 60px rgba(0, 0, 0, 0.36),
+                        0 0 28px rgba(139, 44, 245, 0.13);
+
+
+    /* ======================================================================
+       9. RADIUS
+       ====================================================================== */
+
+    --exd-r-xs: 8px;
+    --exd-r-sm: 12px;
+    --exd-r-md: 16px;
+    --exd-r-lg: 22px;
+    --exd-r-xl: 28px;
+    --exd-r-2xl: 34px;
+    --exd-r-pill: 999px;
+
+
+    /* ======================================================================
+       10. SPACING  (4px base)
+       ====================================================================== */
+
+    --exd-s-1: 4px;
+    --exd-s-2: 8px;
+    --exd-s-3: 12px;
+    --exd-s-4: 16px;
+    --exd-s-5: 20px;
+    --exd-s-6: 24px;
+    --exd-s-8: 32px;
+    --exd-s-10: 40px;
+    --exd-s-12: 48px;
+    --exd-s-16: 64px;
+    --exd-s-20: 80px;
+
+    --exd-section-y: clamp(32px, 4vw, 64px);
+    --exd-gutter: clamp(14px, 3vw, 24px);
+    --exd-maxw: 1240px;
+
+
+    /* ======================================================================
+       11. MOTION
+       ====================================================================== */
+
+    --exd-dur-instant: 0.12s;
+    --exd-dur-fast: 0.22s;
+    --exd-dur-base: 0.34s;
+    --exd-dur-slow: 0.62s;
+    --exd-dur-slower: 0.85s;
+
+    --exd-ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
+    --exd-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --exd-ease-spring: cubic-bezier(0.34, 1.4, 0.42, 1);
+
+    --exd-spin-slow: 18s;
+    --exd-float: 5.5s;
+
+
+    /* ======================================================================
+       12. MEDIA SLOT ASPECT RATIOS  (consumed in Phase 1)
+       Distinct desktop / mobile ratios so nothing is ever squashed.
+       ====================================================================== */
+
+    --exd-ar-hero: 21 / 9;
+    --exd-ar-hero-mobile: 4 / 5;
+    --exd-ar-banner: 3 / 1;
+    --exd-ar-banner-mobile: 16 / 9;
+    --exd-ar-card: 5 / 4;
+    --exd-ar-card-wide: 16 / 10;
+    --exd-ar-category: 1 / 1;
+    --exd-ar-square: 1 / 1;
+    --exd-ar-portrait: 3 / 4;
+
+
+    /* ======================================================================
+       13. Z-INDEX SCALE
+       ====================================================================== */
+
+    --exd-z-behind: -1;
+    --exd-z-base: 1;
+    --exd-z-raised: 5;
+    --exd-z-sticky: 100;
+    --exd-z-nav: 200;
+    --exd-z-overlay: 500;
+    --exd-z-modal: 900;
+    --exd-z-toast: 1000;
+}
+
+
+/* ==========================================================================
+   14. GLOBAL TYPEFACE APPLICATION
+   Form controls do not inherit font-family by default — force them to, so the
+   header search, buttons and any future admin inputs all render in the brand
+   face rather than the UA default.
+   ========================================================================== */
+
+input,
+button,
+select,
+textarea {
+    font-family: inherit;
+}
+
+/* Arabic numerals stay proportional; tabular figures only where alignment
+   matters (prices in a column, stat panels, admin tables). */
+.exd-tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* Kashida (تطويل) elongation for display headings, applied opt-in only —
+   never globally, since it harms legibility at body sizes. */
+.exd-kashida {
+    text-align: justify;
+    text-justify: inter-word;
+}

@@ -11,9 +11,10 @@ if (!isset($page_title)) {
     <meta name="theme-color" content="#09010f">
     <title><?= e($page_title) ?></title>
     <meta name="description" content="Elawaady XDigital Platform - متجر خدمات ومنتجات رقمية، اشتراكات، ذكاء اصطناعي، سوشيال ميديا، توثيق، بطاقات وألعاب.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="assets/fonts/TheYearofHandicrafts-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="assets/fonts/TheYearofHandicrafts-Black.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="icon" type="image/png" href="assets/brand/exd-mark.png">
+    <link rel="stylesheet" href="exd-tokens.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="storefront.css">
     <link rel="stylesheet" href="motion.css">
