@@ -27,7 +27,7 @@ jobs:
       - name: Download reviewed Gemini bundle
         run: |
           python -m pip install --upgrade pip gdown
-          gdown --id 1D_b0bQRLZTF0uWyNku-QlJVa2mW6k5J7 -O /tmp/elawaady-backend.zip
+          gdown 1D_b0bQRLZTF0uWyNku-QlJVa2mW6k5J7 -O /tmp/elawaady-backend.zip
           test -s /tmp/elawaady-backend.zip
 
       - name: Extract reviewed backend into repository
