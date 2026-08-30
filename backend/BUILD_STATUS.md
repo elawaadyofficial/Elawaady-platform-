@@ -12,14 +12,16 @@ Branch: `chatgpt/store-build`
 - Started porting the corrected backend into this branch for integration with the existing repository.
 - Added a safe `backend/.env.example` for Namecheap staging using MySQL and staging-only CORS.
 - Added `backend/production_check.py` to fail fast if SQLite, placeholder secrets, missing DB credentials, or live `elawaady.com` CORS are used during staging.
+- Hardened the staging preflight so deployment now also fails if the required backend source modules, SQL migrations/schema, test suite, or Python runtime dependencies are missing.
 
 ## Safety rules
 - Do not modify the current live `elawaady.com` deployment during staging work.
 - External providers and payment gateways remain sandbox/manual until real API documentation and hosting-side secrets are configured.
 - Secrets must stay in hosting environment variables and must not be committed to GitHub.
+- Run `python backend/production_check.py` with staging environment variables before any Passenger restart or staging cutover.
 
 ## Current blocker
-The branch still contains only the deployment entry files from the corrected Python package. The complete `src/`, `database/` migrations/schema, and `tests/` tree still need to be imported before the Passenger app can boot from GitHub alone.
+The branch still contains only the deployment entry files from the corrected Python package. The complete `src/`, `database/` migrations/schema, and `tests/` tree still need to be imported before the Passenger app can boot from GitHub alone. The new preflight will intentionally block deployment until those files exist.
 
 ## Next build target
-Import the complete corrected Python backend source, schema and tests into `backend/`, then run the suite from the repository branch and wire the storefront/admin UI to the backend API before staging deployment on `e-network.net`.
+Import the complete corrected Python backend source, schema and tests into `backend/`, run the suite from the repository branch, then wire the storefront/admin UI to the backend API before staging deployment on `e-network.net`.
