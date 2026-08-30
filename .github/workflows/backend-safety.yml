@@ -24,7 +24,7 @@ jobs:
           python-version: '3.11'
       - name: Compile deployment entrypoints
         run: |
-          python -m py_compile backend/passenger_wsgi.py backend/init_db.py backend/production_check.py
+          python -m py_compile backend/passenger_wsgi.py backend/staging_fallback.py backend/init_db.py backend/production_check.py
       - name: Reject committed real environment files
         run: |
           test ! -f backend/.env
@@ -36,6 +36,36 @@ jobs:
         run: |
           grep -q 'e-network.net' backend/.env.example
           ! grep -q '^APP_URL=https://elawaady.com' backend/.env.example
+      - name: Exercise staging Passenger boot without exposing internals
+        env:
+          APP_ENV: staging
+        run: |
+          cd backend
+          python - <<'PY'
+          import io
+          import json
+          import passenger_wsgi
+
+          captured = {}
+          def start_response(status, headers):
+              captured['status'] = status
+              captured['headers'] = dict(headers)
+
+          body = b''.join(passenger_wsgi.application({
+              'PATH_INFO': '/api/v1/health',
+              'REQUEST_METHOD': 'GET',
+              'wsgi.input': io.BytesIO(b''),
+          }, start_response))
+          text = body.decode('utf-8', errors='replace')
+          assert captured['status'].startswith(('200 ', '503 ')), captured['status']
+          assert 'Traceback' not in text
+          assert 'DB_PASSWORD' not in text
+          assert 'SESSION_SECRET' not in text
+          if captured['status'].startswith('503 '):
+              payload = json.loads(text)
+              assert payload['status'] == 'bootstrap_incomplete'
+              assert payload['environment'] == 'staging'
+          PY
       - name: Exercise production preflight with safe dummy MySQL config
         env:
           APP_ENV: production
