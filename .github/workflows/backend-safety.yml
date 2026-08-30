@@ -78,4 +78,5 @@ jobs:
           DB_DATABASE: ci_dummy_database
           SESSION_SECRET: ci_session_secret_abcdefghijklmnopqrstuvwxyz012345
           ENCRYPTION_KEY: ci_encrypt_secret_abcdefghijklmnopqrstuvwxyz012345
+          CORS_ALLOWED_ORIGINS: https://e-network.net,https://www.e-network.net
         run: python backend/production_check.py
