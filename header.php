@@ -13,7 +13,8 @@ if (!isset($page_title)) {
     <meta name="description" content="Elawaady XDigital Platform - متجر خدمات ومنتجات رقمية، اشتراكات، ذكاء اصطناعي، سوشيال ميديا، توثيق، بطاقات وألعاب.">
     <link rel="preload" href="assets/fonts/TheYearofHandicrafts-Regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="assets/fonts/TheYearofHandicrafts-Black.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="icon" type="image/png" href="assets/brand/exd-mark.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/favicon-180.png">
     <link rel="stylesheet" href="exd-tokens.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="storefront.css">
@@ -32,7 +33,9 @@ if (!isset($page_title)) {
 <header class="site-header">
     <div class="container header-main">
         <a class="brand" href="index.php" aria-label="Elawaady XDigital">
-            <span class="brand-mark">EXD</span>
+            <span class="brand-mark">
+                <img src="assets/brand/exd-logo-official.webp" alt="EXD" width="822" height="860" fetchpriority="high" decoding="async">
+            </span>
             <span class="brand-copy">
                 <strong>Elawaady XDigital</strong>
                 <small>Digital Store & Services</small>

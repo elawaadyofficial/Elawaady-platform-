@@ -203,9 +203,21 @@ require_once "header.php";
 
 <section class="payment-strip">
     <div class="container payment-inner">
-        <div><span class="mini-label">PAYMENTS</span><h3>وسائل الدفع</h3><p>المكان جاهز لإضافة الشعارات الأصلية التي سترفعها للمتجر.</p></div>
-        <div class="payment-placeholders" aria-label="وسائل الدفع القادمة">
-            <span>VISA</span><span>MC</span><span>InstaPay</span><span>Wallet</span><span>Binance Pay</span><span>Kashier</span>
+        <div><span class="mini-label">PAYMENTS</span><h3>وسائل الدفع</h3><p>ادفع بالطريقة التي تناسبك — محافظ إلكترونية وبطاقات وتحويل بنكي.</p></div>
+        <div class="payment-placeholders" aria-label="وسائل الدفع المتاحة">
+            <span><img src="assets/payments/01-instapay.webp" alt="InstaPay" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/02-fawry.webp" alt="فوري" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/03-paypal.webp" alt="PayPal" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/04-gpay.webp" alt="Google Pay" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/05-vodafone-cash.webp" alt="فودافون كاش" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/06-orange-cash.webp" alt="أورنج كاش" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/07-etisalat-cash.webp" alt="اتصالات كاش" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/08-stc-pay.webp" alt="stc pay" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/09-we-pay.webp" alt="WE Pay" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/10-apple-pay.webp" alt="Apple Pay" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/11-mastercard.webp" alt="Mastercard" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/12-mada.webp" alt="مدى" width="32" height="45" loading="lazy" decoding="async"></span>
+            <span><img src="assets/payments/13-bank-transfer.webp" alt="تحويل بنكي" width="32" height="45" loading="lazy" decoding="async"></span>
         </div>
     </div>
 </section>
