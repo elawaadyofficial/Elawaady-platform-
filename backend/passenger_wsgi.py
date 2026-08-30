@@ -33,11 +33,26 @@ def _load_env_file(file_path):
 
 _load_env_file(os.path.join(APP_ROOT, ".env"))
 
-from src.Api.App import Application
-from src.Api.WsgiAdapter import WsgiAdapter
-from src.Core.DatabaseFactory import DatabaseFactory
+APP_ENV = os.getenv("APP_ENV", "staging").strip().lower()
 
-db = DatabaseFactory.create()
-application_instance = Application(db=db)
-application = WsgiAdapter(application_instance)
+try:
+    from src.Api.App import Application
+    from src.Api.WsgiAdapter import WsgiAdapter
+    from src.Core.DatabaseFactory import DatabaseFactory
+
+    db = DatabaseFactory.create()
+    application_instance = Application(db=db)
+    application = WsgiAdapter(application_instance)
+except (ImportError, ModuleNotFoundError) as exc:
+    # Never mask an incomplete production deployment. Production must fail fast.
+    if APP_ENV in {"production", "prod"}:
+        raise
+
+    # Staging may boot into an explicit 503 diagnostic response while the
+    # reviewed source tree is being assembled. No secrets or stack traces are
+    # exposed by this fallback.
+    from staging_fallback import make_staging_fallback
+
+    application = make_staging_fallback(exc)
+
 app = application
