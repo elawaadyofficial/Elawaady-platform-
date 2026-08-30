@@ -10,11 +10,16 @@ Branch: `chatgpt/store-build`
 - Split production database initialization away from the staging seeder so production setup does not create staging credentials/balances.
 - Re-ran the suite: **52 tests passed**.
 - Started porting the corrected backend into this branch for integration with the existing repository.
+- Added a safe `backend/.env.example` for Namecheap staging using MySQL and staging-only CORS.
+- Added `backend/production_check.py` to fail fast if SQLite, placeholder secrets, missing DB credentials, or live `elawaady.com` CORS are used during staging.
 
 ## Safety rules
 - Do not modify the current live `elawaady.com` deployment during staging work.
 - External providers and payment gateways remain sandbox/manual until real API documentation and hosting-side secrets are configured.
 - Secrets must stay in hosting environment variables and must not be committed to GitHub.
 
+## Current blocker
+The branch still contains only the deployment entry files from the corrected Python package. The complete `src/`, `database/` migrations/schema, and `tests/` tree still need to be imported before the Passenger app can boot from GitHub alone.
+
 ## Next build target
-Import the complete corrected Python backend source, schema and tests into `backend/`, then wire the storefront/admin UI to the backend API and prepare the Namecheap Passenger staging deployment.
+Import the complete corrected Python backend source, schema and tests into `backend/`, then run the suite from the repository branch and wire the storefront/admin UI to the backend API before staging deployment on `e-network.net`.
