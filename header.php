@@ -8,31 +8,56 @@ if (!isset($page_title)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6d28d9">
     <title><?= e($page_title) ?></title>
-    <meta name="description" content="Elawaady XDigital Platform - متجر خدمات رقمية، سوشيال ميديا، توثيق، حسابات جاهزة، AI، Microsoft 365، اشتراكات، وساطة آمنة وماركت بليس.">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="description" content="Elawaady XDigital Platform - متجر خدمات ومنتجات رقمية، اشتراكات، ذكاء اصطناعي، سوشيال ميديا، توثيق، بطاقات وألعاب.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="announcement-bar">
+    <div class="container announcement-inner">
+        <span>⚡ خدمات رقمية مختارة بعناية ودعم سريع</span>
+        <span class="desktop-only">Elawaady XDigital — كل احتياجاتك الرقمية في مكان واحد</span>
+    </div>
+</div>
 
 <header class="site-header">
-    <div class="container nav-wrap">
-        <a class="brand" href="index.php">
-            <span class="brand-mark">XD</span>
-            <span>
-                <strong>Elawaady</strong>
-                <small>XDigital Platform</small>
+    <div class="container header-main">
+        <a class="brand" href="index.php" aria-label="Elawaady XDigital">
+            <span class="brand-mark">EXD</span>
+            <span class="brand-copy">
+                <strong>Elawaady XDigital</strong>
+                <small>Digital Store & Services</small>
             </span>
         </a>
 
-        <button class="menu-toggle" aria-label="فتح القائمة">☰</button>
+        <form class="header-search" action="search.php" method="get" role="search">
+            <input type="search" name="q" placeholder="ابحث عن خدمة، اشتراك، منصة..." aria-label="بحث">
+            <button type="submit" aria-label="بحث">⌕</button>
+        </form>
 
-        <nav class="main-nav">
-            <a href="index.php">الرئيسية</a>
-            <a href="categories.php">الأقسام</a>
-            <a href="search.php">بحث</a>
-            <a href="contact.php">تواصل</a>
-        </nav>
+        <div class="header-actions">
+            <a class="header-action" href="contact.php"><span>◉</span><b>الدعم</b></a>
+            <a class="header-action" href="search.php"><span>⌕</span><b>بحث</b></a>
+            <button class="menu-toggle" type="button" aria-label="فتح القائمة">☰</button>
+        </div>
+    </div>
+
+    <div class="nav-shell">
+        <div class="container nav-wrap">
+            <nav class="main-nav" aria-label="القائمة الرئيسية">
+                <a class="nav-home" href="index.php">الرئيسية</a>
+                <a href="categories.php">كل الأقسام</a>
+                <a href="categories.php">الاشتراكات الرقمية</a>
+                <a href="categories.php">الذكاء الاصطناعي</a>
+                <a href="categories.php">السوشيال ميديا</a>
+                <a href="categories.php">الألعاب والبطاقات</a>
+                <a href="contact.php">تواصل معنا</a>
+            </nav>
+        </div>
     </div>
 </header>
 
