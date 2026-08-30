@@ -1,0 +1,66 @@
+name: Storefront Safety
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+  pull_request:
+    paths:
+      - '*.php'
+      - '*.css'
+      - '*.js'
+      - '.github/workflows/storefront-safety.yml'
+      - 'staging_check.php'
+
+permissions:
+  contents: read
+
+jobs:
+  php-storefront-safety:
+    name: PHP storefront syntax and staging preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PHP CLI and mysqli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-mysql
+
+      - name: Lint storefront PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+          done < <(find . -maxdepth 1 -type f -name '*.php' -print0)
+
+      - name: Run non-production staging preflight
+        env:
+          APP_ENV: staging
+          APP_URL: https://staging.invalid
+          DB_HOST: localhost
+          DB_NAME: exd_staging_ci
+          DB_USER: exd_ci
+          DB_PASS: ci-placeholder-not-a-secret
+        run: php staging_check.php
+
+      - name: Confirm live domain is blocked by preflight
+        env:
+          APP_ENV: staging
+          APP_URL: https://elawaady.com
+          DB_HOST: localhost
+          DB_NAME: exd_staging_ci
+          DB_USER: exd_ci
+          DB_PASS: ci-placeholder-not-a-secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if php staging_check.php; then
+            echo 'ERROR: live-domain guard unexpectedly passed.' >&2
+            exit 1
+          fi
+          echo 'Live-domain guard correctly rejected elawaady.com.'

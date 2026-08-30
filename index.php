@@ -91,10 +91,24 @@ require_once "header.php";
         </div>
         <div class="product-grid">
             <?php foreach (array_slice($featured_services, 0, 8) as $service): ?>
+                <?php
+                $service_media = trim((string)($service['image'] ?? ''));
+                $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
+                $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
+                $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
+                ?>
                 <a class="product-card" href="service.php?id=<?= e($service['id']) ?>">
                     <div class="product-cover">
                         <span class="product-badge"><?= e($service['category_name']) ?></span>
-                        <div class="product-placeholder"><?= mb_substr(e($service['name']), 0, 1) ?></div>
+                        <div class="exd-media">
+                            <?php if ($service_media !== '' && $service_media_is_video): ?>
+                                <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
+                            <?php elseif ($service_media !== ''): ?>
+                                <img src="<?= e($service_media) ?>" alt="<?= e($service['name']) ?>" loading="lazy" decoding="async">
+                            <?php else: ?>
+                                <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="product-body">
                         <h3><?= e($service['name']) ?></h3>
@@ -130,8 +144,24 @@ require_once "header.php";
         </div>
         <div class="product-grid compact-grid">
             <?php foreach (array_slice($featured_services, 8, 4) as $service): ?>
+                <?php
+                $service_media = trim((string)($service['image'] ?? ''));
+                $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
+                $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
+                $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
+                ?>
                 <a class="product-card" href="service.php?id=<?= e($service['id']) ?>">
-                    <div class="product-cover small-cover"><div class="product-placeholder"><?= mb_substr(e($service['name']), 0, 1) ?></div></div>
+                    <div class="product-cover small-cover">
+                        <div class="exd-media">
+                            <?php if ($service_media !== '' && $service_media_is_video): ?>
+                                <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
+                            <?php elseif ($service_media !== ''): ?>
+                                <img src="<?= e($service_media) ?>" alt="<?= e($service['name']) ?>" loading="lazy" decoding="async">
+                            <?php else: ?>
+                                <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                     <div class="product-body"><h3><?= e($service['name']) ?></h3><div class="product-bottom"><strong><?= $service['price'] > 0 ? e(number_format($service['price'], 2)) . " ج.م" : "حسب الطلب" ?></strong><span>التفاصيل</span></div></div>
                 </a>
             <?php endforeach; ?>

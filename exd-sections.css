@@ -1,0 +1,133 @@
+/* Elawaady XDigital — additive section primitives
+ * Purpose: provide reusable large-homepage section shells without replacing legacy styles.
+ */
+
+.exd-section {
+    position: relative;
+    padding-block: clamp(3.5rem, 7vw, 7rem);
+    isolation: isolate;
+}
+
+.exd-section--compact {
+    padding-block: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.exd-section--wide > .container {
+    width: min(100% - 2rem, 1540px);
+    max-width: 1540px;
+}
+
+.exd-section--surface {
+    background:
+        radial-gradient(circle at 15% 15%, rgba(255, 134, 23, 0.08), transparent 34%),
+        radial-gradient(circle at 85% 30%, rgba(36, 229, 242, 0.07), transparent 30%),
+        rgba(255, 255, 255, 0.02);
+}
+
+.exd-section--deep {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.035)),
+        #09010f;
+}
+
+.exd-section__header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.exd-section__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #24e5f2;
+}
+
+.exd-section__title {
+    margin: 0;
+    max-width: 18ch;
+    font-size: clamp(1.65rem, 3vw, 3.1rem);
+    line-height: 1.15;
+    font-weight: 900;
+}
+
+.exd-section__description {
+    max-width: 62ch;
+    margin: 0.8rem 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.9;
+}
+
+.exd-section__action {
+    flex: 0 0 auto;
+}
+
+.exd-grid {
+    display: grid;
+    gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.exd-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.exd-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.exd-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.exd-grid--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.exd-grid--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+.exd-section-divider {
+    position: relative;
+    height: 1px;
+    margin-inline: auto;
+    width: min(calc(100% - 2rem), 1540px);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.13), transparent);
+}
+
+.exd-section-divider::after {
+    content: "";
+    position: absolute;
+    inset: -1px 35%;
+    background: linear-gradient(90deg, transparent, rgba(36,229,242,0.42), transparent);
+    filter: blur(2px);
+}
+
+@media (max-width: 1180px) {
+    .exd-grid--5,
+    .exd-grid--6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 860px) {
+    .exd-section__header {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .exd-grid--3,
+    .exd-grid--4,
+    .exd-grid--5,
+    .exd-grid--6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+    .exd-section {
+        padding-block: 3rem;
+    }
+
+    .exd-section--wide > .container {
+        width: min(100% - 1.25rem, 1540px);
+    }
+
+    .exd-grid--2,
+    .exd-grid--3,
+    .exd-grid--4,
+    .exd-grid--5,
+    .exd-grid--6 { grid-template-columns: 1fr; }
+
+    .exd-section__title {
+        max-width: none;
+    }
+}

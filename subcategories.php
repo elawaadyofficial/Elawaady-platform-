@@ -58,7 +58,22 @@ require_once "header.php";
 
         <div class="service-grid">
             <?php foreach ($services as $service): ?>
+                <?php
+                $service_media = trim((string)($service['image'] ?? ''));
+                $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
+                $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
+                $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
+                ?>
                 <a class="service-card" href="service.php?id=<?= e($service['id']) ?>">
+                    <div class="exd-media">
+                        <?php if ($service_media !== '' && $service_media_is_video): ?>
+                            <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
+                        <?php elseif ($service_media !== ''): ?>
+                            <img src="<?= e($service_media) ?>" alt="<?= e($service['name']) ?>" loading="lazy" decoding="async">
+                        <?php else: ?>
+                            <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
+                        <?php endif; ?>
+                    </div>
                     <div class="service-top">
                         <span><?= e($category['name']) ?></span>
                         <small><?= e($service['status']) ?></small>

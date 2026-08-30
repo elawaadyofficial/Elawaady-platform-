@@ -16,6 +16,9 @@
        motion.css      becomes Animation/Motion only
        exd-tokens.css  becomes the single source for colour/space/type/motion
 
+   Merged with the parallel agent's token foundation — both naming schemes
+   are preserved side by side (see section 14). Nothing was renamed or removed.
+
    Legacy variables still owned elsewhere — do not redeclare here:
        storefront.css : --exd-purple --exd-purple-2 --exd-ink --exd-muted
                         --exd-bg --exd-card --exd-line --exd-radius --exd-shadow
@@ -323,6 +326,107 @@
     --exd-z-overlay: 500;
     --exd-z-modal: 900;
     --exd-z-toast: 1000;
+
+    /* ======================================================================
+       14. COMPATIBILITY TOKENS  (merged from the parallel agent's foundation)
+       --------------------------------------------------------------------
+       Kept verbatim and authoritative — exd-media.css and any future work
+       already consumes these names. Do not rename or remove them; the two
+       naming schemes coexist until a component is deliberately migrated.
+       Note: several of these (--exd-purple, --exd-violet, --exd-orange,
+       --exd-gold, --exd-ink, --exd-border) are also declared later by
+       storefront.css / motion.css, which therefore still win. That is
+       intentional for now — no visual change.
+       ====================================================================== */
+
+    /* Brand */
+    --exd-black: #050505;
+    --exd-ink: #09010f;
+    --exd-purple-950: #12051f;
+    --exd-purple-900: #1c082f;
+    --exd-purple: #7c3aed;
+    --exd-violet: #8b5cf6;
+    --exd-magenta: #ec4899;
+    --exd-pink: #f472b6;
+    --exd-orange: #f97316;
+    --exd-gold: #ffd600;
+    --exd-cyan-legacy: #00e5ff;
+    --exd-success: #25d366;
+
+    /* Text */
+    --exd-text: #ffffff;
+    --exd-text-muted: rgba(255, 255, 255, .72);
+    --exd-text-soft: rgba(255, 255, 255, .56);
+
+    /* Surfaces */
+    --exd-surface-0: #050505;
+    --exd-surface-1: rgba(255, 255, 255, .075);
+    --exd-surface-2: rgba(255, 255, 255, .11);
+    --exd-surface-glass: rgba(18, 5, 31, .62);
+    --exd-border: rgba(255, 255, 255, .13);
+    --exd-border-strong: rgba(255, 255, 255, .20);
+
+    /* Gradients */
+    --exd-gradient-brand: linear-gradient(135deg, var(--exd-violet), var(--exd-magenta) 52%, var(--exd-orange));
+    --exd-gradient-gold: linear-gradient(135deg, var(--exd-gold), var(--exd-orange));
+    --exd-gradient-hero: radial-gradient(circle at 18% 10%, rgba(236, 72, 153, .16), transparent 30%), radial-gradient(circle at 82% 12%, rgba(124, 58, 237, .20), transparent 32%), var(--exd-ink);
+
+    /* Radius */
+    --exd-radius-xs: 10px;
+    --exd-radius-sm: 14px;
+    --exd-radius-md: 18px;
+    --exd-radius-lg: 24px;
+    --exd-radius-xl: 32px;
+    --exd-radius-pill: 999px;
+
+    /* Spacing */
+    --exd-space-1: 4px;
+    --exd-space-2: 8px;
+    --exd-space-3: 12px;
+    --exd-space-4: 16px;
+    --exd-space-5: 20px;
+    --exd-space-6: 24px;
+    --exd-space-8: 32px;
+    --exd-space-10: 40px;
+    --exd-space-12: 48px;
+    --exd-space-16: 64px;
+    --exd-space-20: 80px;
+
+    /* Shadows / glow */
+    --exd-shadow-card: 0 20px 60px rgba(0, 0, 0, .34);
+    --exd-shadow-deep: 0 28px 80px rgba(0, 0, 0, .45);
+    --exd-glow-purple: 0 0 40px rgba(124, 58, 237, .26);
+    --exd-glow-magenta: 0 0 40px rgba(236, 72, 153, .22);
+    --exd-glow-gold: 0 0 32px rgba(255, 214, 0, .22);
+
+    /* Typography — final font switches here after the verified asset lands. */
+    /* Retargeted: the OTF registers the family as "The Year of Handicrafts";
+       "SemBd" is its 600 weight, selected via font-weight, not the family name. */
+    --exd-font-primary: var(--exd-font);
+    --exd-font-fallback: "Cairo", sans-serif;
+    --exd-line-height: 1.7;
+
+    /* Motion */
+    --exd-duration-fast: 160ms;
+    --exd-duration-base: 260ms;
+    --exd-duration-slow: 520ms;
+    --exd-ease-standard: cubic-bezier(.2, .8, .2, 1);
+    --exd-ease-emphasized: cubic-bezier(.16, 1, .3, 1);
+
+    /* Layout */
+    --exd-container: 1440px;
+    --exd-container-wide: 1600px;
+    --exd-gutter: clamp(16px, 3vw, 40px);
+
+    /* Compatibility aliases. These mirror legacy values and do not remove old tokens. */
+    --exd-legacy-bg: var(--exd-black);
+    --exd-legacy-panel: var(--exd-surface-1);
+    --exd-legacy-line: var(--exd-border);
+
+    /* --exd-motion-slow is consumed by exd-media.css but was never declared.
+       Aliased to their own slow duration so the media transitions actually
+       run instead of silently falling back to the initial value. */
+    --exd-motion-slow: var(--exd-duration-slow);
 }
 
 
