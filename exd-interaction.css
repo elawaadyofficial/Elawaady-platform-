@@ -129,3 +129,20 @@ button:active,
         transform: translateY(-50%);
     }
 }
+
+
+/* ============================================================================
+   Reveal animation is an enhancement, never a gate
+   ----------------------------------------------------------------------------
+   .reveal and .reveal-stagger start at opacity 0 and wait for main.js to mark
+   them visible. If the script is blocked or fails, that leaves the whole page
+   blank. The document marks itself as scripted before paint, so anything that
+   never gets marked is simply shown.
+   ========================================================================== */
+
+html:not(.exd-js) .reveal,
+html:not(.exd-js) .reveal-stagger > * {
+    opacity: 1;
+    transform: none;
+    filter: none;
+}

@@ -94,60 +94,6 @@ require_once "header.php";
     </div>
 </section>
 
-<section class="section products-section" id="featured">
-    <div class="container">
-        <div class="section-title-row">
-            <div><span class="mini-label hot">مختاراتنا</span><h2>الأكثر طلبًا 🔥</h2></div>
-            <a href="categories.php" class="text-link">عرض المزيد ←</a>
-        </div>
-        <div class="product-grid">
-            <?php foreach (array_slice($featured_services, 0, 8) as $service): ?>
-                <?php
-                $service_media = trim((string)($service['image'] ?? ''));
-                $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
-                $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
-                $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
-                ?>
-                <a class="product-card" href="service.php?id=<?= e($service['id']) ?>">
-                    <div class="product-cover">
-                        <span class="product-badge"><?= e($service['category_name']) ?></span>
-                        <div class="exd-media">
-                            <?php if ($service_media !== '' && $service_media_is_video): ?>
-                                <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
-                            <?php elseif ($service_media !== ''): ?>
-                                <img src="<?= e($service_media) ?>" alt="<?= e($service['name']) ?>" loading="lazy" decoding="async">
-                            <?php else: ?>
-                                <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <div class="product-body">
-                        <h3><?= e($service['name']) ?></h3>
-                        <p><?= e($service['description']) ?></p>
-                        <div class="product-bottom">
-                            <strong><?= $service['price'] > 0 ? e(number_format($service['price'], 2)) . " ج.م" : "حسب الطلب" ?></strong>
-                            <span>اطلب الآن</span>
-                        </div>
-                    </div>
-                </a>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</section>
-
-<section class="section feature-banner-section">
-    <div class="container">
-        <div class="feature-banner">
-            <div>
-                <span class="mini-label">واجهة مرنة</span>
-                <h2>مكان مخصص للأنيميشن والبنرات</h2>
-                <p>الواجهة مجهزة لاستقبال صور وفيديوهات WebP / GIF / MP4 داخل كاروسيل سريع، مع نسب أبعاد منفصلة للديسكتوب والموبايل بدون تشويه الصورة.</p>
-            </div>
-            <a class="btn btn-light" href="categories.php">استكشف المتجر</a>
-        </div>
-    </div>
-</section>
-
 <?php
 // A banner row sits between the grids. It renders nothing until artwork is
 // uploaded and pointed at the home_mid placement, so the page never shows an
@@ -162,6 +108,68 @@ if ($home_mid !== ''):
 </section>
 <?php endif; ?>
 
+<section class="section products-section" id="featured">
+    <div class="container">
+        <div class="section-title-row">
+            <div><span class="mini-label hot">مختاراتنا</span><h2>الأكثر طلبًا 🔥</h2></div>
+            <a href="categories.php" class="text-link">عرض المزيد ←</a>
+        </div>
+        <div class="product-grid">
+            <?php foreach (array_slice($featured_services, 0, 8) as $service): ?>
+                <?php
+                $service_media = trim((string)($service['image'] ?? ''));
+                $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
+                $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
+                $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
+                ?>
+                <?php
+                $service_href = "service.php?id=" . (int) $service['id'];
+                $order_link = trim((string) ($service['service_link'] ?? ''));
+                $order_external = $order_link !== '';
+                $order_href = $order_external ? $order_link : "contact.php";
+                ?>
+                <article class="product-card">
+                    <div class="product-cover">
+                        <span class="product-badge"><?= e($service['category_name']) ?></span>
+                        <div class="exd-media">
+                            <?php if ($service_media !== '' && $service_media_is_video): ?>
+                                <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
+                            <?php elseif ($service_media !== ''): ?>
+                                <img src="<?= e($service_media) ?>" alt="<?= e($service['name']) ?>" loading="lazy" decoding="async">
+                            <?php else: ?>
+                                <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="product-body">
+                        <h3><a class="card-link" href="<?= e($service_href) ?>"><?= e($service['name']) ?></a></h3>
+                        <p><?= e($service['description']) ?></p>
+                        <div class="product-bottom">
+                            <strong><?= $service['price'] > 0 ? e(number_format($service['price'], 2)) . " ج.م" : "حسب الطلب" ?></strong>
+                        </div>
+                        <div class="card-actions">
+                            <a class="btn btn-secondary btn-card btn-card--minor" href="<?= e($service_href) ?>">التفاصيل</a>
+                            <a class="btn btn-primary btn-card" href="<?= e($order_href) ?>"<?= $order_external ? ' target="_blank" rel="noopener"' : '' ?>>شراء الآن</a>
+                        </div>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+
+<section class="section feature-banner-section">
+    <div class="container">
+        <div class="feature-banner">
+            <div>
+                <h2>وساطة آمنة بضمان مالي كامل</h2>
+                <p>احتجاز المبلغ حتى اكتمال الصفقة · حق اعتراض 48 ساعة · عمولة من 3%</p>
+            </div>
+            <a class="btn btn-light" href="contact.php">ابدأ صفقة ←</a>
+        </div>
+    </div>
+</section>
+
 <?= exd_category_bands($conn, $section_categories, $services_by_category) ?>
 
 <?php
@@ -174,6 +182,8 @@ if ($home_bottom !== ''):
     </div>
 </section>
 <?php endif; ?>
+
+<?= exd_deals_band($conn) ?>
 
 <section class="section reviews-section">
     <div class="container">

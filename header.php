@@ -15,6 +15,7 @@ if (!isset($page_title)) {
     <link rel="preload" href="assets/fonts/TheYearofHandicrafts-Black.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/favicon-180.png">
+    <script>document.documentElement.classList.add("exd-js");</script>
     <link rel="stylesheet" href="exd-tokens.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="storefront.css">

@@ -153,3 +153,50 @@
     .exd-tile__body { padding: 8px 9px 10px; }
     .exd-tile__name { font-size: 11px; }
 }
+
+
+/* --- 5. name strip — one quiet row between two picture bands ----------------
+   No artwork and no gradient. Its whole job is to give the eye a rest between
+   two dense rows of images, so it stays deliberately plain.
+   --------------------------------------------------------------------------- */
+
+.exd-band--strip { padding: 18px 0; }
+
+.exd-strip {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
+}
+
+.exd-chiplink {
+    display: grid;
+    place-items: center;
+    min-height: 46px;
+    padding: 0 10px;
+    border: 1px solid var(--exd-border);
+    border-radius: 13px;
+    background: var(--exd-bg-panel);
+    color: var(--exd-fg-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+}
+
+/* The old price sits before the new one and is never the loud figure. */
+.exd-tile__was {
+    display: inline-block;
+    color: var(--exd-fg-dim);
+    font-weight: 700;
+    font-size: 10px;
+    margin-inline-end: 8px;
+}
+
+@media (max-width: 1000px) {
+    .exd-strip { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 620px) {
+    .exd-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .exd-chiplink { min-height: 40px; font-size: 11px; }
+}

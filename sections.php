@@ -37,13 +37,20 @@ function exd_tile(array $service): string {
         ? number_format((float) $service['price'], 2) . ' ج.م'
         : 'حسب الطلب';
 
+    // Only a genuine markdown earns the struck-through figure. A NULL or a
+    // "was" that is not above the current price shows nothing at all.
+    $was = (float) ($service['old_price'] ?? 0);
+    $wasHtml = ($was > (float) ($service['price'] ?? 0))
+        ? '<s class="exd-tile__was">' . e(number_format($was, 2)) . '</s>'
+        : '';
+
     $meta = trim((string) ($service['status'] ?? ''));
 
     return '<a class="exd-tile" href="' . e($href) . '">'
          . $art
          . '<div class="exd-tile__body">'
          . '<h3 class="exd-tile__name">' . e($name) . '</h3>'
-         . '<b class="exd-tile__price">' . e($price) . '</b>'
+         . '<b class="exd-tile__price">' . $wasHtml . e($price) . '</b>'
          . ($meta !== '' ? '<small class="exd-tile__meta">' . e($meta) . '</small>' : '')
          . '</div></a>';
 }
@@ -100,8 +107,68 @@ function exd_category_bands($conn, array $categories, array $servicesByCategory)
               . '<div class="' . $shape['row'] . ' reveal-stagger">' . $tiles . '</div>'
               . '</div></section>';
 
+        // The strip breaks the run of picture rows once, early, exactly where
+        // the approved layout puts it.
+        if ($i === 0) {
+            $out .= exd_brand_strip($conn);
+        }
+
         $i++;
     }
 
     return $out;
+}
+
+/**
+ * A quiet row of name chips between two picture bands. Real subcategories, so
+ * every chip goes somewhere; no logos are invented for it.
+ */
+function exd_brand_strip($conn): string {
+    $rows = fetch_all(
+        $conn,
+        "SELECT id, category_id, name FROM store_subcategories
+         WHERE is_active = 1 ORDER BY sort_order ASC, id ASC LIMIT 8"
+    );
+
+    if (!$rows) {
+        return '';
+    }
+
+    $chips = '';
+    foreach ($rows as $row) {
+        $chips .= '<a class="exd-chiplink" href="subcategories.php?category_id='
+                . (int) $row['category_id'] . '&amp;subcategory_id=' . (int) $row['id']
+                . '">' . e((string) $row['name']) . '</a>';
+    }
+
+    return '<section class="exd-band exd-band--strip"><div class="container">'
+         . '<div class="exd-strip">' . $chips . '</div></div></section>';
+}
+
+/**
+ * The offers band. It reads the markdown from the data rather than deciding
+ * one: a service is only here when its old price is really above its price,
+ * so the whole band disappears while nothing is on offer.
+ */
+function exd_deals_band($conn): string {
+    $rows = fetch_all(
+        $conn,
+        "SELECT * FROM store_services
+         WHERE is_active = 1 AND old_price IS NOT NULL AND old_price > price
+         ORDER BY (old_price - price) DESC, id DESC LIMIT 6"
+    );
+
+    if (!$rows) {
+        return '';
+    }
+
+    $tiles = '';
+    foreach ($rows as $row) {
+        $tiles .= exd_tile($row);
+    }
+
+    return '<section class="exd-band exd-band--alt"><div class="container">'
+         . exd_section_head('خصومات خاصة', 'أقل الأسعار المتاحة الآن', 'categories.php')
+         . '<div class="exd-row--chip reveal-stagger">' . $tiles . '</div>'
+         . '</div></section>';
 }

@@ -554,7 +554,8 @@ a {
    ========================================================================== */
 
 .category-card:has(.card-actions),
-.service-card:has(.card-actions) {
+.service-card:has(.card-actions),
+.product-card:has(.card-actions) {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -741,3 +742,29 @@ a {
 .category-card:not(:has(.exd-media)) .card-body {
     padding: 0;
 }
+
+
+/* ============================================================================
+   Best-seller card with actions
+   ----------------------------------------------------------------------------
+   The card was one big <a>, which left nowhere legal to put a button. It is an
+   <article> now, so the two actions are real buttons and the rest of the card
+   still opens the service through the stretched overlay above.
+   ========================================================================== */
+
+.product-card:has(.card-actions) .product-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* Freed of the order pill, the price line is just the price. */
+.product-card:has(.card-actions) .product-bottom span { display: none; }
+
+.product-card:has(.card-actions) .product-body h3 { min-height: 0; }
+
+.product-card:has(.card-actions) .card-link { display: block; }
+
+/* Artwork is produced at 1:1. The cover was 1.25, which cut the top and bottom
+   off every service image, so it matches the artwork instead. */
+.product-cover { aspect-ratio: 1; padding: 0; }
