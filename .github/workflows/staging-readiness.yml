@@ -30,10 +30,17 @@ jobs:
               'Homepage Contract',
               'Migration Smoke',
             ];
-            const sha = context.payload.workflow_run.head_sha;
+            const trigger = context.payload.workflow_run;
+            const sha = trigger.head_sha;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const branch = 'chatgpt/store-build';
+
+            // Never allow an older green run to mask a failure on the candidate commit.
+            if (required.includes(trigger.name) && trigger.conclusion !== 'success') {
+              core.setFailed(`${trigger.name} failed for staging candidate ${sha} with conclusion: ${trigger.conclusion || 'unknown'}`);
+              return;
+            }
 
             const { data } = await github.rest.actions.listWorkflowRunsForRepo({
               owner,
