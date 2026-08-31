@@ -71,13 +71,10 @@ function exd_section_head(string $title, string $subtitle, string $allHref): str
  * decides the slice.
  */
 function exd_category_bands($conn, array $categories, array $servicesByCategory): string {
-    // A rail scrolls, so it can hold more than a grid row ever could. The take
-    // is what fills the screen twice over, not what fits it once.
-    $shapes = [
-        ['row' => 'exd-rail exd-rail--poster', 'take' => 12],
-        ['row' => 'exd-rail exd-rail--wide',   'take' => 9],
-        ['row' => 'exd-rail exd-rail--chip',   'take' => 14],
-    ];
+    // Each section announces itself with a full-width banner, then shows its
+    // content in a shape the section before it did not use. Grid, rail, grid,
+    // rail — a stacked block against a scrolling one.
+    $shapes = ['keys', 'rail-poster', 'duo', 'rail-wide', 'keys', 'rail-chip'];
 
     $out = '';
     $i = 0;
@@ -92,30 +89,46 @@ function exd_category_bands($conn, array $categories, array $servicesByCategory)
         }
 
         $shape = $shapes[$i % count($shapes)];
-        $alt = ($i % 2 === 1) ? ' exd-band--alt' : '';
-        $href = 'subcategories.php?category_id=' . $id;
+        $alt   = ($i % 2 === 1) ? ' exd-band--alt' : '';
+        $href  = 'subcategories.php?category_id=' . $id;
 
-        $tiles = '';
-        foreach (array_slice($services, 0, $shape['take']) as $service) {
-            $tiles .= exd_tile($service);
+        $body = '';
+        switch ($shape) {
+            case 'keys':
+                $body = exd_key_grid(
+                    $services,
+                    fn($s) => 'service.php?id=' . (int) $s['id'],
+                    '',
+                    'exd-keys--square'
+                );
+                break;
+
+            case 'duo':
+                $body = exd_duo_grid(
+                    $services,
+                    fn($s) => 'service.php?id=' . (int) $s['id'],
+                    'اكتشف المزيد',
+                    'exd-duo--square'
+                );
+                break;
+
+            default:
+                $rail = str_replace('rail-', '', $shape);
+                $take = $rail === 'wide' ? 9 : 14;
+                $tiles = '';
+                foreach (array_slice($services, 0, $take) as $service) {
+                    $tiles .= exd_tile($service);
+                }
+                $body = '<div class="exd-rail exd-rail--' . $rail . '">' . $tiles . '</div>';
         }
 
-        $out .= '<section class="exd-band' . $alt . '">'
-              . '<div class="exd-railhead">'
-              . exd_section_head(
-                    (string) $cat['name'],
-                    (string) ($cat['description'] ?? ''),
-                    $href
-                )
-              . '</div>'
-              . '<div class="' . $shape['row'] . '">' . $tiles . '</div>'
+        $out .= exd_section_banner($conn, $cat, (string) ($cat['description'] ?? ''))
+              . '<section class="exd-band' . $alt . '">'
+              . '<div class="exd-railhead"><div class="section-head section-head--bare">'
+              . '<a class="section-head__all" href="' . e($href) . '">عرض الكل ←</a>'
+              . '</div></div>'
+              . $body
               . '</section>';
-
-        // The strip breaks the run of picture rows once, early, exactly where
-        // the approved layout puts it.
-        if ($i === 0) {
-            $out .= exd_brand_strip($conn);
-        }
 
         $i++;
     }
@@ -130,7 +143,7 @@ function exd_category_bands($conn, array $categories, array $servicesByCategory)
 function exd_brand_strip($conn): string {
     $rows = fetch_all(
         $conn,
-        "SELECT id, category_id, name FROM store_subcategories
+        "SELECT id, category_id, name, icon, image FROM store_subcategories
          WHERE is_active = 1 ORDER BY sort_order ASC, id ASC LIMIT 16"
     );
 
@@ -138,15 +151,31 @@ function exd_brand_strip($conn): string {
         return '';
     }
 
-    $chips = '';
+    $cards = '';
     foreach ($rows as $row) {
-        $chips .= '<a class="exd-chiplink" href="subcategories.php?category_id='
-                . (int) $row['category_id'] . '&amp;subcategory_id=' . (int) $row['id']
-                . '">' . e((string) $row['name']) . '</a>';
+        $href = 'subcategories.php?category_id=' . (int) $row['category_id']
+              . '&amp;subcategory_id=' . (int) $row['id'];
+        $cards .= '<a class="exd-plat" href="' . $href . '">'
+                . '<span class="exd-plat__art">' . exd_plat_art($row) . '</span>'
+                . '<span class="exd-plat__name">' . e((string) $row['name']) . '</span>'
+                . '<i class="exd-plat__go" aria-hidden="true">←</i>'
+                . '</a>';
     }
 
     return '<section class="exd-band exd-band--strip">'
-         . '<div class="exd-rail exd-rail--strip">' . $chips . '</div></section>';
+         . '<div class="exd-rail exd-rail--plat">' . $cards . '</div></section>';
+}
+
+/** Platform artwork, or its icon while the artwork is still to come. */
+function exd_plat_art(array $row): string {
+    $media = trim((string) ($row['image'] ?? ''));
+    if ($media !== '') {
+        return '<img src="' . e($media) . '" alt="' . e((string) $row['name'])
+             . '" loading="lazy" decoding="async">';
+    }
+    $icon = trim((string) ($row['icon'] ?? ''));
+    return '<span class="exd-plat__mark">'
+         . ($icon !== '' ? e($icon) : mb_substr(e((string) $row['name']), 0, 1)) . '</span>';
 }
 
 /**
@@ -171,10 +200,140 @@ function exd_deals_band($conn): string {
         $tiles .= exd_tile($row);
     }
 
-    return '<section class="exd-band exd-band--alt">'
-         . '<div class="exd-railhead">'
-         . exd_section_head('خصومات خاصة', 'أقل الأسعار المتاحة الآن', 'categories.php')
-         . '</div>'
+    return exd_title_banner('خصومات خاصة', 'أقل الأسعار المتاحة الآن', 'categories.php')
+         . '<section class="exd-band exd-band--alt">'
          . '<div class="exd-rail exd-rail--chip">' . $tiles . '</div>'
          . '</section>';
+}
+
+/* ============================================================================
+   Section grammar — banners, key grids, discovery grids
+   ----------------------------------------------------------------------------
+   A section announces itself with a full-width banner, then shows its content
+   in one of two shapes: a stacked grid of key cards, or a rail. Two sections
+   running never use the same shape.
+
+   Nothing here invents artwork. When a banner has no image the band renders as
+   type on the store's own ground, which is a real section header, not an empty
+   picture frame.
+   ========================================================================== */
+
+/**
+ * A full-width section header. Artwork when the dashboard has it, type when it
+ * does not.
+ */
+function exd_section_banner($conn, array $category, string $subtitle = ''): string {
+    $art = exd_category_banner($conn, $category);
+    $href = 'subcategories.php?category_id=' . (int) $category['id'];
+
+    if (trim($art) !== '') {
+        return '<section class="exd-secbanner">' . $art . '</section>';
+    }
+
+    return '<section class="exd-secbanner exd-secbanner--type">'
+         . '<a class="exd-secbanner__inner" href="' . e($href) . '">'
+         . '<span class="exd-secbanner__title">' . e((string) $category['name']) . '</span>'
+         . ($subtitle !== '' ? '<span class="exd-secbanner__sub">' . e($subtitle) . '</span>' : '')
+         . '</a></section>';
+}
+
+/**
+ * A standalone full-width band that is not tied to a category — offers, the
+ * payment strip, the licence line.
+ */
+function exd_title_banner(string $title, string $subtitle, string $href): string {
+    return '<section class="exd-secbanner exd-secbanner--type">'
+         . '<a class="exd-secbanner__inner" href="' . e($href) . '">'
+         . '<span class="exd-secbanner__title">' . e($title) . '</span>'
+         . ($subtitle !== '' ? '<span class="exd-secbanner__sub">' . e($subtitle) . '</span>' : '')
+         . '</a></section>';
+}
+
+/**
+ * One key card: artwork with a label riding on it. Used by both stacked grids.
+ */
+function exd_key_card(array $item, string $href, string $flag = ''): string {
+    $name  = (string) ($item['name'] ?? '');
+    $media = trim((string) ($item['image'] ?? ''));
+
+    if ($media !== '') {
+        $art = '<img src="' . e($media) . '" alt="' . e($name)
+             . '" loading="lazy" decoding="async">';
+    } else {
+        $icon = trim((string) ($item['icon'] ?? ''));
+        $art = '<span class="exd-key__mark">'
+             . ($icon !== '' ? e($icon) : mb_substr(e($name), 0, 1)) . '</span>';
+    }
+
+    return '<a class="exd-key" href="' . e($href) . '">'
+         . ($flag !== '' ? '<span class="exd-key__flag">' . e($flag) . '</span>' : '')
+         . '<span class="exd-key__art">' . $art . '</span>'
+         . '<span class="exd-key__label">' . e($name) . '</span>'
+         . '</a>';
+}
+
+/**
+ * The stacked grid: three across, two rows. The shape the reference layout
+ * uses for anything that is a way in rather than a thing to buy.
+ */
+function exd_key_grid(array $items, callable $hrefOf, string $flag = '', string $mod = ''): string {
+    if (!$items) {
+        return '';
+    }
+
+    $cards = '';
+    foreach (array_slice($items, 0, 6) as $item) {
+        $cards .= exd_key_card($item, $hrefOf($item), $flag);
+    }
+
+    return '<div class="exd-railhead"><div class="exd-keys' . ($mod !== '' ? ' ' . $mod : '')
+         . '">' . $cards . '</div></div>';
+}
+
+/**
+ * Two across, with the action spelled out under each card. Bigger artwork, so
+ * it carries a section on its own without a rail under it.
+ */
+function exd_duo_grid(array $items, callable $hrefOf, string $action = 'اكتشف المزيد', string $mod = ''): string {
+    if (!$items) {
+        return '';
+    }
+
+    $cards = '';
+    foreach (array_slice($items, 0, 6) as $item) {
+        $href  = $hrefOf($item);
+        $name  = (string) ($item['name'] ?? '');
+        $media = trim((string) ($item['image'] ?? ''));
+
+        $art = $media !== ''
+            ? '<img src="' . e($media) . '" alt="' . e($name) . '" loading="lazy" decoding="async">'
+            : '<span class="exd-key__mark">' . mb_substr(e($name), 0, 1) . '</span>';
+
+        $cards .= '<article class="exd-duo__card">'
+                . '<a class="card-link exd-duo__art" href="' . e($href) . '">' . $art . '</a>'
+                . '<a class="exd-duo__action" href="' . e($href) . '">'
+                . '<span>' . e($action) . '</span><i aria-hidden="true">←</i></a>'
+                . '</article>';
+    }
+
+    return '<div class="exd-railhead"><div class="exd-duo' . ($mod !== '' ? ' ' . $mod : '')
+         . '">' . $cards . '</div></div>';
+}
+
+/**
+ * The announcement bar. Lines come from the caller, never from this file, so
+ * the store's own claims are the only thing it can ever say.
+ */
+function exd_ticker(array $lines): string {
+    if (!$lines) {
+        return '';
+    }
+
+    $items = '';
+    foreach ($lines as $line) {
+        $items .= '<span class="exd-ticker__item"><i aria-hidden="true">✓</i>'
+                . e((string) $line) . '</span>';
+    }
+
+    return '<div class="exd-ticker"><div class="exd-ticker__track">' . $items . $items . '</div></div>';
 }

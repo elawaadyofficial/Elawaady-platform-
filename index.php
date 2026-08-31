@@ -17,6 +17,13 @@ foreach ($section_services as $row) {
 require_once "header.php";
 ?>
 
+<?= exd_ticker([
+    'دعم فني على مدار الساعة 24/7',
+    'وساطة آمنة بضمان مالي كامل',
+    'الوسيط لخدمات السوشيال ميديا — ترخيص 767-766-857',
+    'حسابات موثقة وتسليم مرتب',
+]) ?>
+
 <section class="hero-showcase">
     <div class="container">
         <div class="hero-carousel" data-carousel>
@@ -67,6 +74,8 @@ require_once "header.php";
     </div>
 </section>
 
+<?= exd_brand_strip($conn) ?>
+
 <section class="quick-benefits">
     <div class="container benefits-grid">
         <div><span>⚡</span><b>تنفيذ سريع</b><small>حسب نوع الخدمة</small></div>
@@ -83,16 +92,17 @@ require_once "header.php";
             <a href="categories.php" class="text-link">عرض كل الأقسام ←</a>
         </div>
     </div>
-    <div class="category-scroller exd-rail exd-rail--cat">
-            <?php foreach ($featured_categories as $cat): ?>
-                <a class="category-tile" href="subcategories.php?category_id=<?= e($cat['id']) ?>">
-                    <div class="category-art"><span><?= e($cat['icon']) ?></span></div>
-                    <h3><?= e($cat['name']) ?></h3>
-                    <p><?= e($cat['description']) ?></p>
-                </a>
-        <?php endforeach; ?>
-    </div>
+    <?= exd_key_grid(
+        $featured_categories,
+        fn($c) => 'subcategories.php?category_id=' . (int) $c['id']
+    ) ?>
 </section>
+
+<?= exd_title_banner(
+    'الوسيط لخدمات السوشيال ميديا',
+    'ترخيص رقم 767-766-857 — Elawaady XDigital',
+    'contact.php'
+) ?>
 
 <?php
 // A banner row sits between the grids. It renders nothing until artwork is
@@ -212,6 +222,8 @@ if ($home_bottom !== ''):
         </div>
     </div>
 </section>
+
+<?= exd_title_banner('طرق دفع آمنة ومتعددة', 'ادفع بالطريقة التي تناسبك', 'contact.php') ?>
 
 <section class="payment-strip">
     <div class="container payment-inner">
