@@ -36,17 +36,20 @@ jobs:
             const repo = context.repo.repo;
             const branch = 'chatgpt/store-build';
 
-            // Never allow an older green run to mask a failure on the candidate commit.
+            // A failure on the candidate commit must block immediately.
             if (required.includes(trigger.name) && trigger.conclusion !== 'success') {
               core.setFailed(`${trigger.name} failed for staging candidate ${sha} with conclusion: ${trigger.conclusion || 'unknown'}`);
               return;
             }
 
+            // Inspect completed runs of every required workflow. Path filters mean a workflow
+            // may legitimately not run on the candidate commit, so the latest applicable run
+            // on the candidate or one of its ancestors becomes authoritative.
             const { data } = await github.rest.actions.listWorkflowRunsForRepo({
               owner,
               repo,
               branch,
-              status: 'success',
+              status: 'completed',
               per_page: 100,
             });
 
@@ -62,9 +65,10 @@ jobs:
               const runs = candidates.get(name)
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+              let latestApplicable = null;
               for (const run of runs) {
                 if (run.head_sha === sha) {
-                  accepted.set(name, run);
+                  latestApplicable = run;
                   break;
                 }
 
@@ -76,7 +80,7 @@ jobs:
                     head: sha,
                   });
                   if (comparison.data.status === 'ahead' || comparison.data.status === 'identical') {
-                    accepted.set(name, run);
+                    latestApplicable = run;
                     break;
                   }
                 } catch (error) {
@@ -84,9 +88,17 @@ jobs:
                 }
               }
 
-              if (!accepted.has(name)) {
-                failures.push(`${name}: no successful run found on this commit or an ancestor`);
+              if (!latestApplicable) {
+                failures.push(`${name}: no completed run found on this commit or an ancestor`);
+                continue;
               }
+
+              if (latestApplicable.conclusion !== 'success') {
+                failures.push(`${name}: latest applicable run ${latestApplicable.id} at ${latestApplicable.head_sha} concluded ${latestApplicable.conclusion || 'unknown'}`);
+                continue;
+              }
+
+              accepted.set(name, latestApplicable);
             }
 
             if (failures.length) {
@@ -95,6 +107,6 @@ jobs:
             }
 
             for (const [name, run] of accepted) {
-              core.info(`${name}: accepted successful run ${run.id} at ${run.head_sha}`);
+              core.info(`${name}: accepted latest applicable successful run ${run.id} at ${run.head_sha}`);
             }
             core.notice(`Staging prerequisites are green for ${sha}. This workflow performs validation only and never deploys.`);
