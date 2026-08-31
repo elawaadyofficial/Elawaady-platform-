@@ -79,8 +79,11 @@ document.addEventListener("DOMContentLoaded", () => {
         scroller.addEventListener("pointerleave", stop);
     };
 
+    // Every rail is draggable, not just the category one: a mouse has no swipe,
+    // and a row that only moves by trackpad is a row most people never scroll.
+    document.querySelectorAll(".exd-rail").forEach(setupDragScroller);
+
     const categoryScroller = document.querySelector(".category-scroller");
-    setupDragScroller(categoryScroller);
 
     if (categoryScroller) {
         const titleRow = categoryScroller.closest(".section")?.querySelector(".section-title-row");

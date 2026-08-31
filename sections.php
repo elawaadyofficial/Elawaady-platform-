@@ -71,10 +71,12 @@ function exd_section_head(string $title, string $subtitle, string $allHref): str
  * decides the slice.
  */
 function exd_category_bands($conn, array $categories, array $servicesByCategory): string {
+    // A rail scrolls, so it can hold more than a grid row ever could. The take
+    // is what fills the screen twice over, not what fits it once.
     $shapes = [
-        ['row' => 'exd-row--poster', 'take' => 5],
-        ['row' => 'exd-row--wide',   'take' => 3],
-        ['row' => 'exd-row--chip',   'take' => 6],
+        ['row' => 'exd-rail exd-rail--poster', 'take' => 12],
+        ['row' => 'exd-rail exd-rail--wide',   'take' => 9],
+        ['row' => 'exd-rail exd-rail--chip',   'take' => 14],
     ];
 
     $out = '';
@@ -98,14 +100,16 @@ function exd_category_bands($conn, array $categories, array $servicesByCategory)
             $tiles .= exd_tile($service);
         }
 
-        $out .= '<section class="exd-band' . $alt . '"><div class="container">'
+        $out .= '<section class="exd-band' . $alt . '">'
+              . '<div class="exd-railhead">'
               . exd_section_head(
                     (string) $cat['name'],
                     (string) ($cat['description'] ?? ''),
                     $href
                 )
-              . '<div class="' . $shape['row'] . ' reveal-stagger">' . $tiles . '</div>'
-              . '</div></section>';
+              . '</div>'
+              . '<div class="' . $shape['row'] . '">' . $tiles . '</div>'
+              . '</section>';
 
         // The strip breaks the run of picture rows once, early, exactly where
         // the approved layout puts it.
@@ -127,7 +131,7 @@ function exd_brand_strip($conn): string {
     $rows = fetch_all(
         $conn,
         "SELECT id, category_id, name FROM store_subcategories
-         WHERE is_active = 1 ORDER BY sort_order ASC, id ASC LIMIT 8"
+         WHERE is_active = 1 ORDER BY sort_order ASC, id ASC LIMIT 16"
     );
 
     if (!$rows) {
@@ -141,8 +145,8 @@ function exd_brand_strip($conn): string {
                 . '">' . e((string) $row['name']) . '</a>';
     }
 
-    return '<section class="exd-band exd-band--strip"><div class="container">'
-         . '<div class="exd-strip">' . $chips . '</div></div></section>';
+    return '<section class="exd-band exd-band--strip">'
+         . '<div class="exd-rail exd-rail--strip">' . $chips . '</div></section>';
 }
 
 /**
@@ -155,7 +159,7 @@ function exd_deals_band($conn): string {
         $conn,
         "SELECT * FROM store_services
          WHERE is_active = 1 AND old_price IS NOT NULL AND old_price > price
-         ORDER BY (old_price - price) DESC, id DESC LIMIT 6"
+         ORDER BY (old_price - price) DESC, id DESC LIMIT 14"
     );
 
     if (!$rows) {
@@ -167,8 +171,10 @@ function exd_deals_band($conn): string {
         $tiles .= exd_tile($row);
     }
 
-    return '<section class="exd-band exd-band--alt"><div class="container">'
+    return '<section class="exd-band exd-band--alt">'
+         . '<div class="exd-railhead">'
          . exd_section_head('خصومات خاصة', 'أقل الأسعار المتاحة الآن', 'categories.php')
-         . '<div class="exd-row--chip reveal-stagger">' . $tiles . '</div>'
-         . '</div></section>';
+         . '</div>'
+         . '<div class="exd-rail exd-rail--chip">' . $tiles . '</div>'
+         . '</section>';
 }

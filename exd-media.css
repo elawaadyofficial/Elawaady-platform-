@@ -82,3 +82,32 @@
         transform: none;
     }
 }
+
+
+/* ============================================================================
+   Artwork sits on the store, not in a painted box
+   ----------------------------------------------------------------------------
+   A transparent PNG must stay transparent: the frame paints nothing behind it
+   and casts no scrim over it unless a card asks for one. Service artwork is
+   produced square, so the frame is square and nothing is cropped.
+   ========================================================================== */
+
+.exd-media {
+    --exd-media-ratio: 1;
+    background: none;
+}
+
+.exd-media::after { content: none; }
+
+/* Opt in where a photograph really does need a ground or a scrim. */
+.exd-media--ground {
+    background:
+        radial-gradient(circle at 22% 18%, rgba(168, 85, 247, .34), transparent 36%),
+        radial-gradient(circle at 82% 78%, rgba(255, 134, 23, .22), transparent 34%),
+        linear-gradient(145deg, rgba(18, 8, 34, .98), rgba(41, 14, 68, .94));
+}
+
+.exd-media--scrim::after {
+    content: "";
+    background: linear-gradient(180deg, transparent 55%, rgba(5, 2, 10, .34));
+}

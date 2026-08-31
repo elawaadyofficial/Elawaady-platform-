@@ -77,20 +77,20 @@ require_once "header.php";
 </section>
 
 <section class="section category-section">
-    <div class="container">
+    <div class="exd-railhead">
         <div class="section-title-row">
             <div><span class="mini-label">تصفح بسرعة</span><h2>أقسام المتجر</h2></div>
             <a href="categories.php" class="text-link">عرض كل الأقسام ←</a>
         </div>
-        <div class="category-scroller">
+    </div>
+    <div class="category-scroller exd-rail exd-rail--cat">
             <?php foreach ($featured_categories as $cat): ?>
                 <a class="category-tile" href="subcategories.php?category_id=<?= e($cat['id']) ?>">
                     <div class="category-art"><span><?= e($cat['icon']) ?></span></div>
                     <h3><?= e($cat['name']) ?></h3>
                     <p><?= e($cat['description']) ?></p>
                 </a>
-            <?php endforeach; ?>
-        </div>
+        <?php endforeach; ?>
     </div>
 </section>
 
@@ -101,21 +101,20 @@ require_once "header.php";
 $home_mid = exd_banners_for($conn, 'home_mid');
 if ($home_mid !== ''):
 ?>
-<section class="exd-band">
-    <div class="container">
-        <div class="exd-row--banner3"><?= $home_mid ?></div>
-    </div>
+<section class="exd-band exd-band--banner">
+    <div class="exd-rail exd-rail--banner"><?= $home_mid ?></div>
 </section>
 <?php endif; ?>
 
 <section class="section products-section" id="featured">
-    <div class="container">
+    <div class="exd-railhead">
         <div class="section-title-row">
             <div><span class="mini-label hot">مختاراتنا</span><h2>الأكثر طلبًا 🔥</h2></div>
             <a href="categories.php" class="text-link">عرض المزيد ←</a>
         </div>
-        <div class="product-grid">
-            <?php foreach (array_slice($featured_services, 0, 8) as $service): ?>
+    </div>
+    <div class="exd-rail exd-rail--product">
+        <?php foreach ($featured_services as $service): ?>
                 <?php
                 $service_media = trim((string)($service['image'] ?? ''));
                 $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
@@ -153,13 +152,12 @@ if ($home_mid !== ''):
                         </div>
                     </div>
                 </article>
-            <?php endforeach; ?>
-        </div>
+        <?php endforeach; ?>
     </div>
 </section>
 
-<section class="section feature-banner-section">
-    <div class="container">
+<section class="section feature-banner-section exd-band--banner">
+    <div class="exd-railhead">
         <div class="feature-banner">
             <div>
                 <h2>وساطة آمنة بضمان مالي كامل</h2>
@@ -176,10 +174,8 @@ if ($home_mid !== ''):
 $home_bottom = exd_banners_for($conn, 'home_bottom');
 if ($home_bottom !== ''):
 ?>
-<section class="exd-band">
-    <div class="container">
-        <div class="exd-row--banner2"><?= $home_bottom ?></div>
-    </div>
+<section class="exd-band exd-band--banner">
+    <div class="exd-rail exd-rail--banner"><?= $home_bottom ?></div>
 </section>
 <?php endif; ?>
 

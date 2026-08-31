@@ -200,3 +200,151 @@
     .exd-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .exd-chiplink { min-height: 40px; font-size: 11px; }
 }
+
+
+/* ============================================================================
+   Rails — rows that run the full width of the screen
+   ----------------------------------------------------------------------------
+   A row boxed inside the container ends in a hard vertical edge, and the page
+   reads as a stack of separate boxes. A rail runs edge to edge instead: the
+   first card lines up with the heading above it, and the row keeps going past
+   both sides of the screen.
+
+   The edges fade with a mask, not a painted overlay. A mask reveals whatever
+   the band is sitting on, so the fade is the theme's own colour on every band,
+   in light or dark, with no colour repeated anywhere in this file.
+
+   The fade is exactly as wide as the gutter, so it lives in the empty margin
+   and never washes out a card that is fully in view.
+   ========================================================================== */
+
+.exd-rail {
+    --rail-pad: max(24px, calc((100% - 1240px) / 2));
+    --rail-gap: 14px;
+
+    display: flex;
+    gap: var(--rail-gap);
+    padding-block: 4px 16px;
+    scroll-padding-inline-start: var(--rail-pad);
+
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+
+    -webkit-mask-image: linear-gradient(to right,
+        transparent 0,
+        #000 var(--rail-pad),
+        #000 calc(100% - var(--rail-pad)),
+        transparent 100%);
+    mask-image: linear-gradient(to right,
+        transparent 0,
+        #000 var(--rail-pad),
+        #000 calc(100% - var(--rail-pad)),
+        transparent 100%);
+}
+
+.exd-rail::-webkit-scrollbar { display: none; }
+
+/* The inline offset is two flex spacers rather than padding on the scroller.
+   A right-to-left scroll container does not agree with itself about where
+   padding-inline-start lives, and lands scrolled past its own first card;
+   spacers are ordinary flex items, so both ends behave the same way. */
+.exd-rail::before,
+.exd-rail::after {
+    content: "";
+    flex: 0 0 calc(var(--rail-pad) - var(--rail-gap));
+}
+
+.exd-rail > * {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+}
+
+/* Card widths per rail. Each shape keeps its own scale, so the rhythm the page
+   had as grids survives the move to rails. */
+.exd-rail--poster > * { width: clamp(158px, 17vw, 216px); }
+.exd-rail--wide   > * { width: clamp(290px, 31vw, 400px); }
+.exd-rail--chip   > * { width: clamp(126px, 13vw, 172px); }
+
+/* The wide card keeps its horizontal composition on the rail. */
+.exd-rail--wide .exd-tile {
+    display: grid;
+    grid-template-columns: 38% 1fr;
+    align-items: stretch;
+}
+
+.exd-rail--wide .exd-tile__body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px 14px;
+}
+
+.exd-rail--wide .exd-tile__name { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
+.exd-rail--wide .exd-tile__price { margin-top: 7px; white-space: nowrap; }
+
+.exd-rail--chip .exd-tile__body { padding: 9px 10px 11px; text-align: center; }
+.exd-rail--chip .exd-tile__name { font-size: 10px; }
+
+.exd-rail .exd-tile__art { aspect-ratio: 1; }
+
+/* A rail carries its own inline padding, so the heading above it needs the
+   same alignment to line up with the first card. */
+.exd-railhead {
+    padding-inline: max(24px, calc((100% - 1240px) / 2));
+}
+
+/* The best-seller card is taller than a tile: it carries a description and two
+   buttons, so it gets a wider track. */
+.exd-rail--product > * { width: clamp(240px, 25vw, 306px); }
+.exd-rail--product { align-items: stretch; }
+.exd-rail--product .product-card { display: flex; flex-direction: column; }
+
+/* --- banner rails ------------------------------------------------------------
+   Banners get room around them. They are the loudest thing on the page, and
+   crowding them against a card row is what made the page feel busy.
+   --------------------------------------------------------------------------- */
+
+.exd-band--banner { padding: 46px 0; }
+
+.exd-rail--banner > * { width: clamp(300px, 34vw, 460px); }
+.exd-rail--product > * { width: clamp(240px, 25vw, 306px); }
+.exd-rail--banner { --rail-gap: 18px; }
+
+@media (max-width: 620px) {
+    .exd-rail { --rail-gap: 10px; --rail-pad: 16px; padding-block: 4px 12px; }
+    .exd-rail--poster > * { width: 148px; }
+    .exd-rail--wide   > * { width: 82vw; }
+    .exd-rail--chip   > * { width: 120px; }
+    .exd-rail--banner > * { width: 84vw; }
+    .exd-rail--product > * { width: 66vw; }
+    .exd-railhead { padding-inline: 16px; }
+    .exd-band--banner { padding: 28px 0; }
+    .exd-band > .exd-railhead { padding-inline: 16px; }
+}
+
+/* A rail is dragged or swiped, so the animation that hides its cards until
+   they are scrolled into view must never apply to it. */
+.exd-rail.reveal-stagger > * { opacity: 1; transform: none; }
+
+
+/* The category scroller keeps its own class so its drag handler and arrows
+   still find it; the compound selector is what beats the padding it declares
+   in a stylesheet that loads later. */
+.exd-rail.category-scroller {
+    padding: 4px 0 16px;
+    scroll-snap-type: x proximity;
+}
+
+.exd-rail--cat > * { width: clamp(180px, 19vw, 218px); }
+
+/* The name strip runs the full width like every other row, so the page has one
+   left edge rather than two. */
+.exd-rail--strip { --rail-gap: 10px; padding-block: 2px 6px; }
+.exd-rail--strip > * { width: clamp(124px, 13vw, 168px); }
+
+@media (max-width: 620px) {
+    .exd-rail--cat > * { width: 168px; }
+    .exd-rail--strip > * { width: 122px; }
+}
