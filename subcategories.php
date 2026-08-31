@@ -44,12 +44,20 @@ require_once "header.php";
             <div class="category-grid">
                 <?php foreach ($subcategories as $sub): ?>
                     <?php $sub_href = "subcategories.php?category_id=" . (int)$category_id . "&subcategory_id=" . (int)$sub['id']; ?>
+                    <?php $sub_image = trim((string)($sub['image'] ?? '')); ?>
                     <article class="category-card">
-                        <div class="category-icon"><?= e($sub['icon']) ?></div>
-                        <h3><a class="card-link" href="<?= e($sub_href) ?>"><?= e($sub['name']) ?></a></h3>
-                        <p><?= e($sub['description']) ?></p>
-                        <div class="card-actions">
-                            <a class="btn btn-primary btn-card" href="<?= e($sub_href) ?>">تصفح القسم</a>
+                        <?php if ($sub_image !== ''): ?>
+                            <div class="exd-media">
+                                <img src="<?= e($sub_image) ?>" alt="<?= e($sub['name']) ?>" loading="lazy" decoding="async">
+                            </div>
+                        <?php endif; ?>
+                        <div class="card-body">
+                            <div class="category-icon"><?= e($sub['icon']) ?></div>
+                            <h3><a class="card-link" href="<?= e($sub_href) ?>"><?= e($sub['name']) ?></a></h3>
+                            <p><?= e($sub['description']) ?></p>
+                            <div class="card-actions">
+                                <a class="btn btn-secondary btn-card" href="<?= e($sub_href) ?>">تصفح القسم</a>
+                            </div>
                         </div>
                     </article>
                 <?php endforeach; ?>

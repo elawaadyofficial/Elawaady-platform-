@@ -315,8 +315,12 @@ a {
     border-radius: 18px;
     display: grid;
     place-items: center;
-    color: #000;
-    background: linear-gradient(135deg, var(--gold), var(--magenta));
+    /* Muted on purpose. The live store keeps its badges and tiles quiet
+       (#4b287c) and spends its one loud gradient on the primary button. A
+       gold-to-magenta tile next to that button makes the card shout twice. */
+    color: var(--exd-violet-300);
+    background: var(--exd-bg-inset);
+    border: 1px solid var(--exd-border);
     font-size: 24px;
     margin-bottom: 14px;
 }
@@ -720,4 +724,20 @@ a {
     .section-head p { font-size: 11px; }
     .card-body { padding: 10px; }
     .service-card:has(.exd-media) h3 { font-size: 12px; }
+}
+
+
+/* --- subcategory artwork ----------------------------------------------------
+   Every subcategory carries its own image, not just an icon. The icon tile
+   stays as the fallback for rows with no artwork uploaded yet.
+   --------------------------------------------------------------------------- */
+
+.category-card:has(.exd-media) .category-icon {
+    display: none;
+}
+
+/* A card without artwork keeps its own inset padding, so its body must not add
+   a second one on top. */
+.category-card:not(:has(.exd-media)) .card-body {
+    padding: 0;
 }
