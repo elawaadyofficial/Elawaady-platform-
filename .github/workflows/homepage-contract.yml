@@ -1,0 +1,91 @@
+name: Homepage Contract
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+    paths:
+      - 'index.php'
+      - 'sections.php'
+      - 'exd-layouts.css'
+      - '.github/workflows/homepage-contract.yml'
+  pull_request:
+    paths:
+      - 'index.php'
+      - 'sections.php'
+      - 'exd-layouts.css'
+      - '.github/workflows/homepage-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homepage-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  homepage-contract:
+    name: Homepage composition contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify homepage section grammar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          required = {
+              Path('index.php'): [
+                  'require_once "sections.php";',
+                  'exd_ticker(',
+                  'exd_brand_strip($conn)',
+                  'exd_key_grid(',
+                  'exd_category_bands(',
+                  'exd_deals_band($conn)',
+                  "exd_banners_for($conn, 'home_mid')",
+                  "exd_banners_for($conn, 'home_bottom')",
+              ],
+              Path('sections.php'): [
+                  'function exd_tile(',
+                  'function exd_category_bands(',
+                  'function exd_brand_strip(',
+                  'function exd_deals_band(',
+                  'function exd_section_banner(',
+                  'function exd_title_banner(',
+                  'function exd_key_grid(',
+                  'function exd_duo_grid(',
+                  'function exd_ticker(',
+              ],
+              Path('exd-layouts.css'): [
+                  '.exd-secbanner',
+                  '.exd-rail',
+                  '.exd-keys',
+                  '.exd-duo',
+              ],
+          }
+
+          failures = []
+          for path, needles in required.items():
+              if not path.is_file():
+                  failures.append(f'{path}: required file missing')
+                  continue
+              text = path.read_text(encoding='utf-8')
+              for needle in needles:
+                  if needle not in text:
+                      failures.append(f'{path}: missing homepage contract token: {needle}')
+
+          if failures:
+              print('ERROR: homepage section grammar regressed:', file=sys.stderr)
+              for failure in failures:
+                  print(f'  - {failure}', file=sys.stderr)
+              raise SystemExit(1)
+
+          print('Homepage section grammar contract is intact.')
+          PY
