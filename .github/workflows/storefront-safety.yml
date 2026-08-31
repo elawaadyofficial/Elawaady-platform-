@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: storefront-safety-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   php-storefront-safety:
     name: PHP storefront syntax and staging preflight
@@ -48,10 +52,38 @@ jobs:
           DB_PASS: ci-placeholder-not-a-secret
         run: php staging_check.php
 
-      - name: Confirm live domain is blocked by preflight
+      - name: Confirm live domain and subdomains are blocked
         env:
           APP_ENV: staging
-          APP_URL: https://elawaady.com
+          DB_HOST: localhost
+          DB_NAME: exd_staging_ci
+          DB_USER: exd_ci
+          DB_PASS: ci-placeholder-not-a-secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          for url in https://elawaady.com https://www.elawaady.com https://admin.elawaady.com; do
+            if APP_URL="$url" php staging_check.php; then
+              echo "ERROR: live-domain guard unexpectedly passed for $url" >&2
+              exit 1
+            fi
+          done
+          echo 'Live-domain guard correctly rejected elawaady.com and its subdomains.'
+
+      - name: Confirm lookalike host is not falsely blocked
+        env:
+          APP_ENV: staging
+          APP_URL: https://elawaady.com.attacker.invalid
+          DB_HOST: localhost
+          DB_NAME: exd_staging_ci
+          DB_USER: exd_ci
+          DB_PASS: ci-placeholder-not-a-secret
+        run: php staging_check.php
+
+      - name: Confirm malformed staging URL is rejected
+        env:
+          APP_ENV: staging
+          APP_URL: elawaady-staging
           DB_HOST: localhost
           DB_NAME: exd_staging_ci
           DB_USER: exd_ci
@@ -60,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           if php staging_check.php; then
-            echo 'ERROR: live-domain guard unexpectedly passed.' >&2
+            echo 'ERROR: malformed APP_URL unexpectedly passed.' >&2
             exit 1
           fi
-          echo 'Live-domain guard correctly rejected elawaady.com.'
+          echo 'Malformed APP_URL correctly rejected.'

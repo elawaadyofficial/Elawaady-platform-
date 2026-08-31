@@ -20,18 +20,31 @@ function env_required(string $key): ?string {
     return trim($value);
 }
 
+function is_live_elawaady_host(string $host): bool {
+    $host = strtolower(rtrim($host, '.'));
+    return $host === 'elawaady.com' || str_ends_with($host, '.elawaady.com');
+}
+
 $errors = [];
 $warnings = [];
 
 $appEnv = strtolower((string) (getenv('APP_ENV') ?: ''));
-$appUrl = strtolower((string) (getenv('APP_URL') ?: ''));
+$appUrl = trim((string) (getenv('APP_URL') ?: ''));
 
 if (!in_array($appEnv, ['staging', 'development'], true)) {
     $errors[] = 'APP_ENV must be staging (or development for local checks).';
 }
 
-if ($appUrl !== '' && (str_contains($appUrl, 'elawaady.com') || str_contains($appUrl, 'www.elawaady.com'))) {
-    $errors[] = 'APP_URL points at the live elawaady.com domain. Staging preflight aborted.';
+if ($appUrl !== '') {
+    $parts = parse_url($appUrl);
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+
+    if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+        $errors[] = 'APP_URL must be a valid absolute http(s) URL.';
+    } elseif (is_live_elawaady_host($host)) {
+        $errors[] = 'APP_URL points at the live elawaady.com domain. Staging preflight aborted.';
+    }
 }
 
 foreach (['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS'] as $key) {
