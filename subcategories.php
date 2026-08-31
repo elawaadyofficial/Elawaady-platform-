@@ -39,11 +39,15 @@ require_once "header.php";
         <?php else: ?>
             <div class="category-grid">
                 <?php foreach ($subcategories as $sub): ?>
-                    <a class="category-card" href="subcategories.php?category_id=<?= e($category_id) ?>&subcategory_id=<?= e($sub['id']) ?>">
+                    <?php $sub_href = "subcategories.php?category_id=" . (int)$category_id . "&subcategory_id=" . (int)$sub['id']; ?>
+                    <article class="category-card">
                         <div class="category-icon"><?= e($sub['icon']) ?></div>
-                        <h3><?= e($sub['name']) ?></h3>
+                        <h3><a class="card-link" href="<?= e($sub_href) ?>"><?= e($sub['name']) ?></a></h3>
                         <p><?= e($sub['description']) ?></p>
-                    </a>
+                        <div class="card-actions">
+                            <a class="btn btn-primary btn-card" href="<?= e($sub_href) ?>">تصفح القسم</a>
+                        </div>
+                    </article>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -64,7 +68,15 @@ require_once "header.php";
                 $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
                 $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
                 ?>
-                <a class="service-card" href="service.php?id=<?= e($service['id']) ?>">
+                <?php
+                $service_href = "service.php?id=" . (int)$service['id'];
+                // Same rule service.php already uses: an explicit order link when
+                // one is set, otherwise the contact page.
+                $order_href = trim((string)($service['service_link'] ?? ''));
+                $order_external = $order_href !== '';
+                if (!$order_external) { $order_href = 'contact.php'; }
+                ?>
+                <article class="service-card">
                     <div class="exd-media">
                         <?php if ($service_media !== '' && $service_media_is_video): ?>
                             <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
@@ -78,10 +90,14 @@ require_once "header.php";
                         <span><?= e($category['name']) ?></span>
                         <small><?= e($service['status']) ?></small>
                     </div>
-                    <h3><?= e($service['name']) ?></h3>
+                    <h3><a class="card-link" href="<?= e($service_href) ?>"><?= e($service['name']) ?></a></h3>
                     <p><?= e($service['description']) ?></p>
                     <div class="price"><?= $service['price'] > 0 ? e(number_format($service['price'], 2)) . " ج.م" : "حسب الطلب" ?></div>
-                </a>
+                    <div class="card-actions">
+                        <a class="btn btn-secondary btn-card btn-card--minor" href="<?= e($service_href) ?>">التفاصيل</a>
+                        <a class="btn btn-primary btn-card" href="<?= e($order_href) ?>"<?= $order_external ? ' target="_blank" rel="noopener"' : '' ?>>اطلب الآن</a>
+                    </div>
+                </article>
             <?php endforeach; ?>
         </div>
     </div>

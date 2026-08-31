@@ -24,6 +24,7 @@
    --------------------------------------------------------------------------- */
 
 .btn,
+.btn-card,
 .btn-primary,
 .btn-secondary,
 .btn-ghost,
@@ -44,6 +45,7 @@ button,
 }
 
 .btn:active,
+.btn-card:active,
 .btn-primary:active,
 .btn-secondary:active,
 .btn-ghost:active,

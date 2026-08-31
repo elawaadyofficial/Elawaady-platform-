@@ -536,3 +536,78 @@ a {
         flex-direction: column;
     }
 }
+
+/* ============================================================================
+   Card actions
+   ----------------------------------------------------------------------------
+   The cards used to be a single <a> wrapping everything, which meant no button
+   could live inside one: a link inside a link is invalid and browsers break it
+   apart. The card is now an <article>, the title carries the link, and the
+   whole card stays clickable through a stretched overlay on that link.
+
+   The overlay sits at z-index 1 and the action row at 2, so pressing a button
+   hits the button and pressing anywhere else on the card still opens it.
+   ========================================================================== */
+
+.category-card:has(.card-actions),
+.service-card:has(.card-actions) {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.card-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+}
+
+/* Pushed to the bottom so every card in a row ends on the same line, however
+   long its title or description runs. */
+.card-actions {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 14px;
+}
+
+.btn-card {
+    flex: 1;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+/* The secondary action is deliberately narrower: the order button is the one
+   being aimed at, and an equal split makes them read as the same weight. */
+.btn-card--minor {
+    flex: 0 0 38%;
+}
+
+@media (max-width: 620px) {
+    .card-actions {
+        gap: 6px;
+        padding-top: 10px;
+    }
+
+    /* 40px is the floor a thumb can hit reliably; the card can spare the
+       four pixels more comfortably than the tap can spare them. */
+    .btn-card {
+        min-height: 40px;
+        padding: 0 8px;
+        font-size: 11px;
+    }
+
+    .btn-card--minor {
+        flex: 0 0 40%;
+    }
+}
