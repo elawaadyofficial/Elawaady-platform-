@@ -31,7 +31,11 @@ require_once "header.php";
 <section class="section">
     <div class="container">
         <div class="section-head">
-            <h2>الأقسام الفرعية</h2>
+            <div>
+                <h2>الأقسام الفرعية</h2>
+                <p>اختر القسم الفرعي لتصفح خدماته</p>
+            </div>
+            <a class="section-head__all" href="categories.php">كل الأقسام ←</a>
         </div>
 
         <?php if (!$subcategories): ?>
@@ -57,7 +61,11 @@ require_once "header.php";
 <section class="section section-dark">
     <div class="container">
         <div class="section-head">
-            <h2>خدمات من هذا القسم</h2>
+            <div>
+                <h2>خدمات من هذا القسم</h2>
+                <p>أعلى الخدمات طلبًا داخل <?= e($category['name']) ?></p>
+            </div>
+            <a class="section-head__all" href="search.php">عرض الكل ←</a>
         </div>
 
         <div class="service-grid">
@@ -86,16 +94,18 @@ require_once "header.php";
                             <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
                         <?php endif; ?>
                     </div>
-                    <div class="service-top">
-                        <span><?= e($category['name']) ?></span>
-                        <small><?= e($service['status']) ?></small>
-                    </div>
+                    <div class="card-body">
+                    <div class="card-kicker"><?= e($category['name']) ?></div>
                     <h3><a class="card-link" href="<?= e($service_href) ?>"><?= e($service['name']) ?></a></h3>
                     <p><?= e($service['description']) ?></p>
+                    <div class="service-top">
+                        <small><?= e($service['status']) ?></small>
+                    </div>
                     <div class="price"><?= $service['price'] > 0 ? e(number_format($service['price'], 2)) . " ج.م" : "حسب الطلب" ?></div>
                     <div class="card-actions">
                         <a class="btn btn-secondary btn-card btn-card--minor" href="<?= e($service_href) ?>">التفاصيل</a>
                         <a class="btn btn-primary btn-card" href="<?= e($order_href) ?>"<?= $order_external ? ' target="_blank" rel="noopener"' : '' ?>>اطلب الآن</a>
+                    </div>
                     </div>
                 </article>
             <?php endforeach; ?>

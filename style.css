@@ -611,3 +611,113 @@ a {
         flex: 0 0 40%;
     }
 }
+
+/* ============================================================================
+   Storefront card language
+   ----------------------------------------------------------------------------
+   Ports the approved homepage layout onto the real pages: full-bleed artwork
+   at the top of the card, a padded body under it, an orange kicker naming the
+   section, and a section header with an accent bar, a subtitle and a
+   "view all" pill.
+
+   Scoped with :has(), so a card without artwork keeps the original inset
+   padding and nothing that already worked changes shape.
+   ========================================================================== */
+
+/* --- section header -------------------------------------------------------- */
+
+.section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.section-head h2 {
+    position: relative;
+    padding-inline-start: 13px;
+    font-size: 23px;
+    margin: 0;
+}
+
+/* The bar reads as a section marker, not decoration: it repeats at every
+   heading so the eye can find where a band starts while scrolling. */
+.section-head h2::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 4px;
+    border-radius: 9px;
+    background: linear-gradient(180deg, var(--exd-orange-500), var(--exd-gold-500));
+}
+
+.section-head p {
+    padding-inline-start: 13px;
+    font-size: 12px;
+    margin: 5px 0 0;
+}
+
+.section-head__all {
+    flex: none;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--exd-gold-500);
+    border: 1px solid var(--exd-orange-600);
+    border-radius: 999px;
+    padding: 7px 15px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* --- card with artwork ----------------------------------------------------- */
+
+.service-card:has(.exd-media),
+.category-card:has(.exd-media) {
+    padding: 0;
+    overflow: hidden;
+}
+
+.service-card:has(.exd-media) .exd-media,
+.category-card:has(.exd-media) .exd-media {
+    aspect-ratio: 1;          /* the 1:1 the artwork is produced at */
+    border-radius: 0;
+    margin: 0;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 14px;
+}
+
+.card-body .card-actions {
+    padding-top: 12px;
+}
+
+/* Names the section above the title, the way the live store does. */
+.card-kicker {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--exd-orange-500);
+    margin-bottom: 5px;
+}
+
+.service-card:has(.exd-media) h3 {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 7px;
+}
+
+.service-card:has(.exd-media) .price {
+    margin-top: 8px;
+}
+
+@media (max-width: 620px) {
+    .section-head h2 { font-size: 18px; }
+    .section-head p { font-size: 11px; }
+    .card-body { padding: 10px; }
+    .service-card:has(.exd-media) h3 { font-size: 12px; }
+}
