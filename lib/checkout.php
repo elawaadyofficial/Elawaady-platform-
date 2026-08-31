@@ -147,7 +147,7 @@ function checkout_with_wallet(array $input): array {
              VALUES (?, ?, 'debit', ?, ?, ?, 'order_payment', ?, ?, 'Atomic wallet checkout', 'user', ?)"
         );
         $ledger->bind_param(
-            'iiddsisii',
+            'iiddsisi',
             $walletId,
             $userId,
             $total,
@@ -169,7 +169,7 @@ function checkout_with_wallet(array $input): array {
                  reviewed_by, reviewed_at, review_note)
              VALUES (?, ?, 'wallet', ?, ?, 'confirmed', ?, ?, NOW(), 'Atomic wallet checkout')"
         );
-        $payment->bind_param('iidsii', $orderId, $userId, $total, $currency, $orderCode, $userId);
+        $payment->bind_param('iidssi', $orderId, $userId, $total, $currency, $orderCode, $userId);
         $payment->execute();
 
         $history = $conn->prepare(
