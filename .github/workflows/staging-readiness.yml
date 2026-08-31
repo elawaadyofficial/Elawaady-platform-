@@ -6,6 +6,7 @@ on:
       - Storefront Safety
       - Homepage Contract
       - Migration Smoke
+      - Catalog Visual Contract
     types: [completed]
 
 permissions:
@@ -29,6 +30,7 @@ jobs:
               'Storefront Safety',
               'Homepage Contract',
               'Migration Smoke',
+              'Catalog Visual Contract',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;
