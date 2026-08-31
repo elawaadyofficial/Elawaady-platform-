@@ -23,30 +23,31 @@ Matches the storefront's existing `.container`.
 
 ## 2. Grid counts — RESOLVED
 
-The owner chose **5 / 4 / 3**, confirming the earlier brief over this spec's
-4 / 3 / 2. Implemented and verified in Chromium.
+**4 desktop · 3 tablet / iPad · 2 mobile.** The owner settled on this spec's
+counts after briefly trying 5 / 4 / 3; the denser variant was implemented,
+measured and then withdrawn.
 
 | Surface | Desktop | Tablet / iPad | Mobile |
 |---|---|---|---|
-| Categories (`.category-scroller`, `.category-grid`) | 5 | 4 | 3 |
-| Services / products (`.product-grid`, `.service-grid`) | 5 | 4 | 3 |
+| Categories (`.category-grid`) | 4 | 3 | 2 |
+| Services / products (`.product-grid`, `.service-grid`) | 4 | 3 | 2 |
 
-Breakpoints: 5 above 1000px · 4 at 1000–761px · 3 at 760px and below.
-Applies to categories, subcategories, services, products, offers and stores
-alike. **Real breakpoints only — never page zoom.**
+Breakpoints in `storefront.css`: 4 above 1000px · 3 at 1000–761px · 2 at 760px
+and below. In `style.css`, which styles the categories, subcategories, service,
+search and contact pages: 4 above 900px · 3 at 900–621px · 2 at 620px and below.
+`.service-grid` no longer overrides to 3 on desktop, so services and categories
+read as one system.
 
-Measured card widths: 235px at 1440 · 221px at 1200 · 186px at 1024 ·
-172px at 768 · 115px at 390 · 105px at 360. No horizontal overflow and no
-overlap at 360px.
+Measured at 4-across: 285px per card at 1440 and 221px at 1200. At 2-across on
+a 360px screen each card is about 165px, which is comfortable — the aggressive
+compact card (two-line clamp, hidden description, stacked CTA) that three
+per row would have required is **not** needed and was reverted with the rest.
 
-Because three cards on a 360px screen leaves ~105px each, the mobile card is
-compact: 9px padding, the name clamped to two lines at a fixed 32px height so
-every card in a row keeps the same height and baseline, the description hidden,
-and the price and CTA stacked with the CTA at full card width.
+`.category-scroller` on the homepage stays the horizontal drag-scroller built
+in `motion.css`, with its pointer handlers in `main.js`. It was converted to a
+grid only to satisfy the withdrawn three-per-row rule, and is now restored.
 
-**Known edge:** a tablet in landscape at 1024px gets 5 columns, since the
-breakpoint is 1000px. Every iPad in portrait (768–834px) gets 4. Raising the
-breakpoint to 1024px is a one-line change if landscape should also show 4.
+**Real responsive breakpoints only — never page zoom.**
 
 ## 3. Media dimensions
 
