@@ -6,11 +6,10 @@ on:
       - chatgpt/store-build
   pull_request:
     paths:
-      - '*.php'
-      - '*.css'
-      - '*.js'
+      - '**/*.php'
+      - '**/*.css'
+      - '**/*.js'
       - '.github/workflows/storefront-safety.yml'
-      - 'staging_check.php'
 
 permissions:
   contents: read
@@ -40,7 +39,12 @@ jobs:
           set -euo pipefail
           while IFS= read -r -d '' file; do
             php -l "$file"
-          done < <(find . -maxdepth 1 -type f -name '*.php' -print0)
+          done < <(
+            find . -type f -name '*.php' \
+              -not -path './vendor/*' \
+              -not -path './legacy_reference/*' \
+              -print0
+          )
 
       - name: Run non-production staging preflight
         env:
