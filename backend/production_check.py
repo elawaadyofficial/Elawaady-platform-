@@ -71,6 +71,7 @@ def main() -> int:
     session_secret = os.getenv("SESSION_SECRET", "")
     encryption_key = os.getenv("ENCRYPTION_KEY", "")
     cors = [x.strip().lower() for x in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if x.strip()]
+    parsed_cors = [urlparse(origin) for origin in cors]
     cors_hosts = [hostname(origin) for origin in cors]
 
     if env not in {"staging", "production"}:
@@ -103,6 +104,8 @@ def main() -> int:
             fail("Production APP_URL must be an absolute HTTPS URL")
         if not host_is(app_host, "elawaady.com"):
             fail("Production APP_URL must use elawaady.com")
+        if any(parsed.scheme != "https" or not host for parsed, host in zip(parsed_cors, cors_hosts)):
+            fail("Production CORS origins must all be absolute HTTPS URLs")
         if not any(host and host_is(host, "elawaady.com") for host in cors_hosts):
             fail("Production CORS must include elawaady.com")
 
