@@ -1,9 +1,19 @@
 <?php
 require_once "db_connect.php";
 require_once "banner.php";
+require_once "sections.php";
 $page_title = "Elawaady XDigital Platform | المتجر الرسمي";
 $featured_categories = fetch_all($conn, "SELECT * FROM store_categories WHERE is_active=1 ORDER BY sort_order ASC LIMIT 12");
 $featured_services = fetch_all($conn, "SELECT s.*, c.name AS category_name FROM store_services s LEFT JOIN store_categories c ON c.id=s.category_id WHERE s.is_active=1 ORDER BY s.sort_order ASC, s.id DESC LIMIT 12");
+
+// One query for the whole varied rhythm below, grouped in PHP rather than a
+// query per category.
+$section_categories = fetch_all($conn, "SELECT * FROM store_categories WHERE is_active=1 ORDER BY sort_order ASC, id ASC LIMIT 8");
+$section_services = fetch_all($conn, "SELECT * FROM store_services WHERE is_active=1 ORDER BY sort_order ASC, id DESC");
+$services_by_category = [];
+foreach ($section_services as $row) {
+    $services_by_category[(int) $row['category_id']][] = $row;
+}
 require_once "header.php";
 ?>
 
@@ -138,37 +148,32 @@ require_once "header.php";
     </div>
 </section>
 
-<section class="section products-section alternate-products">
+<?php
+// A banner row sits between the grids. It renders nothing until artwork is
+// uploaded and pointed at the home_mid placement, so the page never shows an
+// empty frame.
+$home_mid = exd_banners_for($conn, 'home_mid');
+if ($home_mid !== ''):
+?>
+<section class="exd-band">
     <div class="container">
-        <div class="section-title-row">
-            <div><span class="mini-label">جديد المتجر</span><h2>خدمات ومنتجات جديدة ⚡</h2></div>
-        </div>
-        <div class="product-grid compact-grid">
-            <?php foreach (array_slice($featured_services, 8, 4) as $service): ?>
-                <?php
-                $service_media = trim((string)($service['image'] ?? ''));
-                $service_media_path = parse_url($service_media, PHP_URL_PATH) ?: '';
-                $service_media_ext = strtolower(pathinfo($service_media_path, PATHINFO_EXTENSION));
-                $service_media_is_video = in_array($service_media_ext, ['mp4', 'webm'], true);
-                ?>
-                <a class="product-card" href="service.php?id=<?= e($service['id']) ?>">
-                    <div class="product-cover small-cover">
-                        <div class="exd-media">
-                            <?php if ($service_media !== '' && $service_media_is_video): ?>
-                                <video src="<?= e($service_media) ?>" muted loop playsinline preload="metadata" aria-label="<?= e($service['name']) ?>"></video>
-                            <?php elseif ($service_media !== ''): ?>
-                                <img src="<?= e($service_media) ?>" alt="<?= e($service['name']) ?>" loading="lazy" decoding="async">
-                            <?php else: ?>
-                                <div class="exd-media-fallback"><span><?= mb_substr(e($service['name']), 0, 1) ?></span></div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <div class="product-body"><h3><?= e($service['name']) ?></h3><div class="product-bottom"><strong><?= $service['price'] > 0 ? e(number_format($service['price'], 2)) . " ج.م" : "حسب الطلب" ?></strong><span>التفاصيل</span></div></div>
-                </a>
-            <?php endforeach; ?>
-        </div>
+        <div class="exd-row--banner3"><?= $home_mid ?></div>
     </div>
 </section>
+<?php endif; ?>
+
+<?= exd_category_bands($conn, $section_categories, $services_by_category) ?>
+
+<?php
+$home_bottom = exd_banners_for($conn, 'home_bottom');
+if ($home_bottom !== ''):
+?>
+<section class="exd-band">
+    <div class="container">
+        <div class="exd-row--banner2"><?= $home_bottom ?></div>
+    </div>
+</section>
+<?php endif; ?>
 
 <section class="section reviews-section">
     <div class="container">

@@ -1,0 +1,155 @@
+/* ============================================================================
+   EXD — section layouts
+   ----------------------------------------------------------------------------
+   The five card shapes the homepage alternates between, plus the band and
+   heading chrome that separates one section from the next.
+
+   The point is rhythm: two sections in a row must never look the same. A grid
+   of square cards is followed by a banner, then by tall posters, then by wide
+   ones. That is what stops a long page reading as one endless list.
+
+   None of these carry the brand gradient. It is reserved for the action that
+   costs money, which lives only on the product card.
+   ========================================================================== */
+
+/* --- bands ------------------------------------------------------------------
+   Alternating grounds, so the eye can see where one section ends.
+   --------------------------------------------------------------------------- */
+
+.exd-band { padding: 34px 0; }
+
+.exd-band--alt {
+    background: var(--exd-bg-deep);
+    border-block: 1px solid var(--exd-border);
+}
+
+/* --- shared card shell ------------------------------------------------------ */
+
+.exd-tile {
+    position: relative;
+    display: block;
+    background: var(--exd-bg-panel);
+    border: 1px solid var(--exd-border);
+    border-radius: 18px;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+}
+
+.exd-tile__art { position: relative; background: var(--exd-bg-inset); }
+
+.exd-tile__art img,
+.exd-tile__art video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Holds the slot at the right shape while artwork is still to come. */
+.exd-tile__art--empty {
+    display: grid;
+    place-items: center;
+    color: var(--exd-fg-dim);
+    font-size: 26px;
+    font-weight: 900;
+}
+
+.exd-tile__body { padding: 11px 12px 13px; }
+
+.exd-tile__name {
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.exd-tile__price {
+    display: block;
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--exd-gold-500);
+    margin-top: 5px;
+}
+
+.exd-tile__meta {
+    display: block;
+    font-size: 10px;
+    color: var(--exd-fg-muted);
+    margin-top: 4px;
+}
+
+/* --- 1. poster — 2:3, five across ------------------------------------------- */
+
+/* Artwork is produced at 1:1 and stays 1:1 everywhere. A 2:3 or 16:9 frame
+   would crop half of it away, so the shapes below vary the composition and the
+   count instead of the aspect ratio. */
+.exd-row--poster { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; }
+.exd-row--poster .exd-tile__art { aspect-ratio: 1; }
+
+/* --- 2. wide — 16:9, three across ------------------------------------------- */
+
+/* Horizontal card: square artwork on one side, text beside it. This reads as a
+   genuinely different shape from the poster above it without cropping the art. */
+.exd-row--wide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+.exd-row--wide .exd-tile {
+    display: grid;
+    grid-template-columns: 38% 1fr;
+    align-items: stretch;
+}
+
+.exd-row--wide .exd-tile__art { aspect-ratio: 1; }
+
+.exd-row--wide .exd-tile__body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px 14px;
+}
+
+.exd-row--wide .exd-tile__name { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
+.exd-row--wide .exd-tile__price { margin-top: 7px; white-space: nowrap; }
+
+/* --- 3. chip — small 1:1, six across ---------------------------------------- */
+
+.exd-row--chip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.exd-row--chip .exd-tile__art { aspect-ratio: 1; }
+.exd-row--chip .exd-tile__body { padding: 9px 10px 11px; text-align: center; }
+.exd-row--chip .exd-tile__name { font-size: 10px; }
+.exd-row--chip .exd-tile__price { font-size: 11px; }
+
+/* --- 4. banner row — 2:1, three or two across -------------------------------- */
+
+.exd-row--banner3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.exd-row--banner2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.exd-row--banner3:empty,
+.exd-row--banner2:empty { display: none; }
+
+/* --- responsive -------------------------------------------------------------
+   Counts step down together so the page keeps its variety on a phone instead
+   of collapsing every section into the same two columns.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 1000px) {
+    .exd-row--poster { grid-template-columns: repeat(4, 1fr); }
+    .exd-row--chip   { grid-template-columns: repeat(4, 1fr); }
+    .exd-row--wide   { grid-template-columns: repeat(2, 1fr); }
+    .exd-row--banner3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 620px) {
+    .exd-band { padding: 24px 0; }
+    .exd-row--poster { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .exd-row--chip   { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .exd-row--wide   { grid-template-columns: 1fr; }
+    .exd-row--banner3,
+    .exd-row--banner2 { grid-template-columns: 1fr; gap: 10px; }
+    .exd-tile__body { padding: 8px 9px 10px; }
+    .exd-tile__name { font-size: 11px; }
+}
