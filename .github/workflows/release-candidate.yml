@@ -1,0 +1,76 @@
+name: Release Candidate
+
+on:
+  workflow_run:
+    workflows:
+      - Staging Readiness
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate-release-candidate:
+    if: github.event.workflow_run.head_branch == 'chatgpt/store-build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require green staging readiness
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Staging Readiness is not green for $CANDIDATE_SHA: $CONCLUSION"
+            exit 1
+          fi
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Verify candidate is current branch HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          CURRENT_SHA="$(gh api "repos/$REPO/branches/chatgpt/store-build" --jq '.commit.sha')"
+          if [ "$CURRENT_SHA" != "$CANDIDATE_SHA" ]; then
+            echo "Candidate $CANDIDATE_SHA is stale; current chatgpt/store-build HEAD is $CURRENT_SHA"
+            exit 1
+          fi
+
+      - name: Validate deployment checklist contract
+        run: |
+          test -f DEPLOYMENT_CHECKLIST.md
+          grep -q '^## Environment$' DEPLOYMENT_CHECKLIST.md
+          grep -q '^## Database$' DEPLOYMENT_CHECKLIST.md
+          grep -q '^## Storefront QA$' DEPLOYMENT_CHECKLIST.md
+          grep -q '^## Performance$' DEPLOYMENT_CHECKLIST.md
+          grep -q '^## Security / Release Gate$' DEPLOYMENT_CHECKLIST.md
+          grep -q '^## Release Process$' DEPLOYMENT_CHECKLIST.md
+          grep -q 'Deploy to staging first' DEPLOYMENT_CHECKLIST.md
+          grep -q 'Only then schedule production release separately' DEPLOYMENT_CHECKLIST.md
+          grep -q 'No force-push, reset, or direct production deployment from `chatgpt/store-build`' DEPLOYMENT_CHECKLIST.md
+
+      - name: Guard against committed environment files and database dumps
+        run: |
+          forbidden="$(git ls-files | grep -E '(^|/)(\.env($|\.)|.*\.(sql\.gz|dump|bak)$)' || true)"
+          if [ -n "$forbidden" ]; then
+            echo "Forbidden release artifacts are tracked:"
+            echo "$forbidden"
+            exit 1
+          fi
+
+      - name: Release candidate summary
+        env:
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "Release candidate validation passed for $CANDIDATE_SHA"
+          echo "This workflow validates readiness only. It does not deploy to staging or production."
