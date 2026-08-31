@@ -10,14 +10,29 @@
 -- Run it manually, on staging first:
 --   mysql -u USER -p DBNAME < migrations/001_section_banners.sql
 --
--- Every column is nullable or defaulted. A category with no row here still
--- renders its banner from the theme palette, so creating the table changes
--- nothing until the admin panel writes to it.
+-- Every column is nullable or defaulted, and a category with no row here
+-- renders no banner at all, so creating the table changes nothing on the
+-- storefront until artwork is uploaded and a row points at it.
+--
+-- Banner artwork is supplied as finished files and placed at its own size:
+-- asset_desktop and asset_mobile are paths under assets/banners/, and no
+-- aspect ratio is imposed anywhere.
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS store_section_banners (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    category_id     INT NOT NULL,
+    -- NULL means a standalone banner: not tied to any category, placed by
+    -- 'placement' instead. That is how a banner of any size gets added freely.
+    category_id     INT           NULL,
+
+    -- Where a standalone banner appears, e.g. home_top, home_mid, home_bottom.
+    -- Ignored when category_id is set.
+    placement       VARCHAR(40)   NOT NULL DEFAULT '',
+
+    -- 'image' places the supplied artwork at its own proportions. 'composed'
+    -- draws the gradient pill around the title instead. Empty picks image when
+    -- artwork exists and renders nothing when it does not.
+    mode            VARCHAR(20)   NOT NULL DEFAULT '',
 
     -- NULL means: use the category's own name, so renaming a category renames
     -- its banner with no extra step.
@@ -55,7 +70,10 @@ CREATE TABLE IF NOT EXISTS store_section_banners (
     created_at      TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
+    -- One banner per category, but any number of standalone banners: MySQL
+    -- lets a UNIQUE key hold repeated NULLs, so both hold at once.
     UNIQUE KEY uniq_category (category_id),
+    KEY idx_placement_order (placement, is_visible, sort_order),
     KEY idx_visible_order (is_visible, sort_order),
     CONSTRAINT fk_section_banner_category
         FOREIGN KEY (category_id) REFERENCES store_categories(id) ON DELETE CASCADE

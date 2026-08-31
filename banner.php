@@ -142,11 +142,39 @@ function exd_banner_settings($conn, ?int $categoryId): array {
 }
 
 /**
+ * Read a banner file's real pixel size so width/height can be emitted and the
+ * browser reserves the right space before the image loads. Cached per request.
+ * Returns null for a missing file or an unreadable one.
+ */
+function exd_banner_dimensions(string $path): ?array {
+    static $cache = [];
+
+    if (array_key_exists($path, $cache)) {
+        return $cache[$path];
+    }
+
+    $local = __DIR__ . '/' . ltrim($path, '/');
+    $size = is_file($local) ? @getimagesize($local) : false;
+    $cache[$path] = $size ? ['w' => (int) $size[0], 'h' => (int) $size[1]] : null;
+
+    return $cache[$path];
+}
+
+/**
  * Render one section banner.
  *
- * Accepted keys, all optional except title:
- *   title asset asset_mobile theme gradient accent glow text_color font
- *   font_size asset_scale asset_position height radius link visible class
+ * With artwork set this places the file at its own proportions — open size,
+ * nothing cropped, nothing drawn over it. That is the normal path.
+ *
+ * With no artwork it renders nothing, unless mode is explicitly 'composed',
+ * which draws the gradient pill around the title instead. Composed is never a
+ * silent fallback: a section without artwork stays empty rather than showing
+ * something invented.
+ *
+ * Accepted keys:
+ *   title asset asset_mobile alt link visible class radius mode
+ *   theme gradient accent glow text_color font font_size asset_scale
+ *   asset_position height   (the last group applies to composed mode only)
  */
 function exd_banner(array $b): string {
     if (array_key_exists('visible', $b) && !$b['visible']) {
@@ -154,6 +182,50 @@ function exd_banner(array $b): string {
     }
 
     $title = trim((string) ($b['title'] ?? ''));
+    $asset = trim((string) ($b['asset'] ?? ''));
+    $assetMobile = trim((string) ($b['asset_mobile'] ?? ''));
+    $href = $b['link'] ?? null;
+    $mode = $b['mode'] ?? ($asset !== '' ? 'image' : 'none');
+
+    if ($mode === 'none') {
+        return '';
+    }
+
+    $radius = $b['radius'] ?? null;
+
+    /* ---------------------------------------------------------------- image */
+    if ($mode === 'image') {
+        if ($asset === '') {
+            return '';
+        }
+
+        // Empty alt: the banner is decorative next to the section heading, and
+        // the link already carries an accessible name.
+        $alt = (string) ($b['alt'] ?? '');
+        $dim = exd_banner_dimensions($asset);
+        $sizeAttrs = $dim ? ' width="' . $dim['w'] . '" height="' . $dim['h'] . '"' : '';
+
+        $img = '<img src="' . e($asset) . '" alt="' . e($alt) . '"' . $sizeAttrs
+             . ' loading="lazy" decoding="async">';
+
+        if ($assetMobile !== '') {
+            $img = '<picture>'
+                 . '<source media="(max-width: 560px)" srcset="' . e($assetMobile) . '">'
+                 . $img
+                 . '</picture>';
+        }
+
+        $class = 'exd-banner exd-banner--image' . (isset($b['class']) ? ' ' . $b['class'] : '');
+        $style = $radius ? ' style="' . e('--exd-banner-radius:' . $radius . ';') . '"' : '';
+        $tag = $href ? 'a' : 'div';
+        $label = $title !== '' ? ' aria-label="' . e($title) . '"' : '';
+
+        return '<' . $tag . ' class="' . e($class) . '"' . $style
+             . ($href ? ' href="' . e($href) . '"' : '') . ($href ? $label : '')
+             . '>' . $img . '</' . $tag . '>';
+    }
+
+    /* ------------------------------------------------------------- composed */
     if ($title === '') {
         return '';
     }
@@ -170,13 +242,13 @@ function exd_banner(array $b): string {
         '--exd-banner-fg'     => $b['text_color'] ?? null,
     ];
 
-    // Geometry and type properties. Only set when overridden, so the
-    // stylesheet's responsive defaults keep working.
-    $vars['--exd-banner-font']        = $b['font']         ?? null;
-    $vars['--exd-banner-size']        = $b['font_size']    ?? null;
-    $vars['--exd-banner-asset-scale'] = $b['asset_scale']  ?? null;
-    $vars['--exd-banner-h']           = $b['height']       ?? null;
-    $vars['--exd-banner-radius']      = $b['radius']       ?? null;
+    // Geometry and type. Only emitted when overridden, so the stylesheet's
+    // responsive defaults keep working.
+    $vars['--exd-banner-font']        = $b['font']        ?? null;
+    $vars['--exd-banner-size']        = $b['font_size']   ?? null;
+    $vars['--exd-banner-asset-scale'] = $b['asset_scale'] ?? null;
+    $vars['--exd-banner-h']           = $b['height']      ?? null;
+    $vars['--exd-banner-radius']      = $radius;
 
     $style = '';
     foreach ($vars as $prop => $value) {
@@ -186,38 +258,22 @@ function exd_banner(array $b): string {
     }
 
     $position = ($b['asset_position'] ?? 'end') === 'start' ? 'start' : 'end';
-    $href = $b['link'] ?? null;
     $tag = $href ? 'a' : 'div';
     $class = 'exd-banner' . (isset($b['class']) ? ' ' . $b['class'] : '');
 
-    $attrs = 'class="' . e($class) . '"'
+    $stage = $asset !== ''
+        ? '<img src="' . e($asset) . '" alt="" loading="lazy" decoding="async">'
+        : '';
+
+    return '<' . $tag
+        . ' class="' . e($class) . '"'
         . ' data-asset-position="' . $position . '"'
         . ($style !== '' ? ' style="' . e($style) . '"' : '')
         . ($href ? ' href="' . e($href) . '"' : '')
-        . ' aria-label="' . e($title) . '"';
-
-    // Asset slot: a real render when one is configured, an abstract decorative
-    // cluster otherwise. No product imagery is ever invented here.
-    $asset = trim((string) ($b['asset'] ?? ''));
-    $assetMobile = trim((string) ($b['asset_mobile'] ?? ''));
-
-    if ($asset !== '') {
-        if ($assetMobile !== '') {
-            $stage = '<picture>'
-                . '<source media="(max-width: 560px)" srcset="' . e($assetMobile) . '">'
-                . '<img src="' . e($asset) . '" alt="" loading="lazy" decoding="async">'
-                . '</picture>';
-        } else {
-            $stage = '<img src="' . e($asset) . '" alt="" loading="lazy" decoding="async">';
-        }
-    } else {
-        $stage = '<span class="exd-banner__orbs" aria-hidden="true"><i></i><i></i><i></i></span>';
-    }
-
-    return '<' . $tag . ' ' . $attrs . '>'
+        . ' aria-label="' . e($title) . '">'
         . '<span class="exd-banner__pill">'
         . '<span class="exd-banner__title">' . e($title) . '</span>'
-        . '<span class="exd-banner__stage">' . $stage . '</span>'
+        . ($stage !== '' ? '<span class="exd-banner__stage">' . $stage . '</span>' : '')
         . '</span>'
         . '</' . $tag . '>';
 }
@@ -231,21 +287,63 @@ function exd_category_banner($conn, array $category): string {
     $saved = exd_banner_settings($conn, $id);
 
     return exd_banner([
-        'title'          => $saved['title']         ?? ($category['name'] ?? ''),
-        'theme'          => $saved['theme']         ?? null,
-        'gradient'       => $saved['gradient']      ?? null,
-        'accent'         => $saved['accent']        ?? null,
-        'glow'           => $saved['glow']          ?? null,
-        'text_color'     => $saved['text_color']    ?? null,
-        'font'           => $saved['font_family']   ?? null,
-        'font_size'      => $saved['font_size']     ?? null,
+        'title'          => $saved['title'] ?? ($category['name'] ?? ''),
         'asset'          => $saved['asset_desktop'] ?? null,
-        'asset_mobile'   => $saved['asset_mobile']  ?? null,
-        'asset_scale'    => $saved['asset_scale']   ?? null,
+        'asset_mobile'   => $saved['asset_mobile'] ?? null,
+        'radius'         => $saved['border_radius'] ?? null,
+        'link'           => $saved['link'] ?? ($id ? 'subcategories.php?category_id=' . $id : null),
+        'visible'        => !isset($saved['is_visible']) || (int) $saved['is_visible'] === 1,
+        'mode'           => $saved['mode'] ?? null,
+        // Composed-mode settings, ignored unless mode is 'composed'.
+        'theme'          => $saved['theme'] ?? null,
+        'gradient'       => $saved['gradient'] ?? null,
+        'accent'         => $saved['accent'] ?? null,
+        'glow'           => $saved['glow'] ?? null,
+        'text_color'     => $saved['text_color'] ?? null,
+        'font'           => $saved['font_family'] ?? null,
+        'font_size'      => $saved['font_size'] ?? null,
+        'asset_scale'    => $saved['asset_scale'] ?? null,
         'asset_position' => $saved['asset_position'] ?? null,
         'height'         => $saved['banner_height'] ?? null,
-        'radius'         => $saved['border_radius'] ?? null,
-        'link'           => $saved['link']          ?? ($id ? 'subcategories.php?category_id=' . $id : null),
-        'visible'        => !isset($saved['is_visible']) || (int) $saved['is_visible'] === 1,
     ]);
+}
+
+/**
+ * Every standalone banner for a placement — banners not tied to a category,
+ * added freely at any size. Returns an empty string when the table does not
+ * exist yet or the placement holds nothing.
+ */
+function exd_banners_for($conn, string $placement): string {
+    static $rows = null;
+
+    if ($rows === null) {
+        $rows = [];
+        $check = @$conn->query("SHOW TABLES LIKE 'store_section_banners'");
+        if ($check && $check->num_rows > 0) {
+            $result = @$conn->query(
+                "SELECT * FROM store_section_banners
+                  WHERE is_visible = 1 AND category_id IS NULL AND placement <> ''
+               ORDER BY sort_order ASC, id ASC"
+            );
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $rows[$row['placement']][] = $row;
+                }
+            }
+        }
+    }
+
+    $out = '';
+    foreach ($rows[$placement] ?? [] as $row) {
+        $out .= exd_banner([
+            'title'        => $row['title'] ?? '',
+            'asset'        => $row['asset_desktop'] ?? null,
+            'asset_mobile' => $row['asset_mobile'] ?? null,
+            'radius'       => $row['border_radius'] ?? null,
+            'link'         => $row['link'] ?? null,
+            'mode'         => $row['mode'] ?? null,
+        ]);
+    }
+
+    return $out;
 }
