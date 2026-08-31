@@ -3,6 +3,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 APP_ROOT = Path(__file__).resolve().parent
 REQUIRED_BACKEND_MODULES = (
@@ -15,6 +16,20 @@ REQUIRED_BACKEND_MODULES = (
 def fail(message: str) -> None:
     print(f"[FAIL] {message}")
     raise SystemExit(1)
+
+
+def hostname(value: str) -> str:
+    """Return a normalized hostname for an absolute http(s) URL, or an empty string."""
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+    return (parsed.hostname or "").strip().lower().rstrip(".")
+
+
+def host_is(host: str, domain: str) -> bool:
+    """Match a domain or one of its real subdomains without substring spoofing."""
+    domain = domain.lower().rstrip(".")
+    return host == domain or host.endswith("." + domain)
 
 
 def require_backend_tree() -> None:
@@ -50,10 +65,12 @@ def require_runtime_dependencies() -> None:
 def main() -> int:
     env = os.getenv("APP_ENV", "").strip().lower()
     app_url = os.getenv("APP_URL", "").strip().lower().rstrip("/")
+    app_host = hostname(app_url)
     db = os.getenv("DB_CONNECTION", "").strip().lower()
     session_secret = os.getenv("SESSION_SECRET", "")
     encryption_key = os.getenv("ENCRYPTION_KEY", "")
     cors = [x.strip().lower() for x in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if x.strip()]
+    cors_hosts = [hostname(origin) for origin in cors]
 
     if env not in {"staging", "production"}:
         fail("APP_ENV must be staging or production")
@@ -69,15 +86,15 @@ def main() -> int:
         fail("DB_USERNAME, DB_PASSWORD and DB_DATABASE are required")
 
     if env == "staging":
-        if not app_url:
-            fail("APP_URL is required for staging")
-        if "elawaady.com" in app_url:
+        if not app_host:
+            fail("APP_URL must be an absolute http(s) URL for staging")
+        if host_is(app_host, "elawaady.com"):
             fail("Live elawaady.com must never be used as the staging APP_URL")
-        if "e-network.net" not in app_url:
+        if not host_is(app_host, "e-network.net"):
             fail("Staging APP_URL must use e-network.net")
-        if any("elawaady.com" in origin for origin in cors):
+        if any(host and host_is(host, "elawaady.com") for host in cors_hosts):
             fail("Live elawaady.com must not be enabled during staging")
-        if not any("e-network.net" in origin for origin in cors):
+        if not any(host and host_is(host, "e-network.net") for host in cors_hosts):
             fail("Staging CORS must include e-network.net")
 
     require_backend_tree()
