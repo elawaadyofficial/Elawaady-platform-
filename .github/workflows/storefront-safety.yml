@@ -9,6 +9,7 @@ on:
       - '**/*.php'
       - '**/*.css'
       - '**/*.js'
+      - 'migrations/**/*.sql'
       - '.github/workflows/storefront-safety.yml'
 
 permissions:
@@ -45,6 +46,48 @@ jobs:
               -not -path './legacy_reference/*' \
               -print0
           )
+
+      - name: Guard migrations against destructive SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          migration_dir = pathlib.Path('migrations')
+          if not migration_dir.exists():
+              print('No migrations directory; nothing to inspect.')
+              raise SystemExit(0)
+
+          destructive = re.compile(
+              r'\b(?:DROP\s+(?:TABLE|DATABASE|COLUMN|INDEX)|TRUNCATE\s+TABLE|DELETE\s+FROM)\b',
+              re.IGNORECASE,
+          )
+          block_comment = re.compile(r'/\*.*?\*/', re.DOTALL)
+          line_comment = re.compile(r'(?m)^\s*--.*$')
+
+          violations = []
+          checked = 0
+          for path in sorted(migration_dir.rglob('*.sql')):
+              checked += 1
+              text = path.read_text(encoding='utf-8')
+              executable = block_comment.sub('', text)
+              executable = line_comment.sub('', executable)
+              match = destructive.search(executable)
+              if match:
+                  violations.append(f'{path}: {match.group(0)}')
+
+          if violations:
+              print('ERROR: destructive SQL detected in storefront migrations:', file=sys.stderr)
+              for violation in violations:
+                  print(f'  - {violation}', file=sys.stderr)
+              print('Migrations on this branch must remain additive/non-destructive.', file=sys.stderr)
+              raise SystemExit(1)
+
+          print(f'Checked {checked} migration(s): no destructive SQL detected.')
+          PY
 
       - name: Run non-production staging preflight
         env:
