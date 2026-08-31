@@ -1,0 +1,232 @@
+/* ============================================================================
+   EXD — Section banner
+   ----------------------------------------------------------------------------
+   A wide rounded pill carrying a section title, with a 3D asset cluster that
+   deliberately breaks out of the pill on one side. Geometry is taken from the
+   supplied reference (1366x297 canvas, 156px pill body, 73px of overflow above
+   and 41px below), expressed relative to the pill height so it scales cleanly.
+
+   Every themeable value is a custom property set on the element, so changing a
+   section's colour cannot move anything: the layout reads only from
+   --exd-banner-h, --exd-banner-radius, --exd-banner-asset-* and the type
+   tokens. Colour lives entirely in --exd-banner-grad / -accent / -glow / -fg.
+
+   The page behind stays transparent. There is no card, no panel, no border.
+   ========================================================================== */
+
+.exd-banner {
+    /* --- geometry (never touched by theming) --- */
+    --exd-banner-h: clamp(84px, 11.4vw, 156px);
+    --exd-banner-radius: 999px;
+    --exd-banner-overflow-top: calc(var(--exd-banner-h) * 0.47);
+    --exd-banner-overflow-bottom: calc(var(--exd-banner-h) * 0.26);
+    --exd-banner-asset-scale: 1;
+    --exd-banner-asset-width: 40%;
+
+    /* --- type --- */
+    --exd-banner-font: var(--exd-font);
+    --exd-banner-size: clamp(17px, 2.9vw, 44px);
+    --exd-banner-weight: 900;
+    --exd-banner-fg: #fff;
+
+    /* --- colour (the only thing a theme changes) --- */
+    --exd-banner-grad: linear-gradient(270deg, #b12bed 0%, #e32dc9 26%, #fd448e 48%, #ff6e64 70%, #ffa105 100%);
+    --exd-banner-accent: #ff8a3d;
+    --exd-banner-glow: rgba(224, 60, 190, 0.38);
+
+    display: block;
+    position: relative;
+    isolation: isolate;
+    padding-block: var(--exd-banner-overflow-top) var(--exd-banner-overflow-bottom);
+    /* no background, no border, no shadow on the wrapper: the page shows through */
+    background: none;
+    border: 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+/* --- the pill -------------------------------------------------------------- */
+
+.exd-banner__pill {
+    position: relative;
+    height: var(--exd-banner-h);
+    border-radius: var(--exd-banner-radius);
+    background: var(--exd-banner-grad);
+    display: flex;
+    align-items: center;
+    /* The reference title starts at 10.8% of the banner width. */
+    padding-inline: 10.8% 4%;
+    /* Overflow must stay visible or the asset cluster gets clipped by the pill. */
+    overflow: visible;
+    box-shadow: 0 18px 44px -12px var(--exd-banner-glow);
+}
+
+/* A soft bloom under the pill, sized from the pill itself so it tracks the
+   height. Kept behind everything and non-interactive. */
+.exd-banner__pill::after {
+    content: "";
+    position: absolute;
+    inset: 12% 4% -18%;
+    border-radius: var(--exd-banner-radius);
+    background: var(--exd-banner-glow);
+    filter: blur(26px);
+    opacity: 0.55;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* --- title ----------------------------------------------------------------- */
+
+.exd-banner__title {
+    position: relative;
+    z-index: 2;
+    margin: 0;
+    font-family: var(--exd-banner-font);
+    font-size: var(--exd-banner-size);
+    font-weight: var(--exd-banner-weight);
+    line-height: 1.25;
+    color: var(--exd-banner-fg);
+    letter-spacing: 0.01em;
+    /* The reference title block ends at 48.5% of the width. */
+    max-width: 52%;
+    text-shadow: 0 2px 10px rgba(40, 6, 60, 0.28);
+}
+
+/* --- asset stage ----------------------------------------------------------- */
+
+.exd-banner__stage {
+    position: absolute;
+    inset-block: calc(var(--exd-banner-overflow-top) * -1) calc(var(--exd-banner-overflow-bottom) * -1);
+    inset-inline-end: 1.5%;
+    width: var(--exd-banner-asset-width);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.exd-banner[data-asset-position="start"] .exd-banner__stage {
+    inset-inline-end: auto;
+    inset-inline-start: 1.5%;
+}
+
+.exd-banner[data-asset-position="start"] .exd-banner__pill {
+    padding-inline: 4% 10.8%;
+}
+
+.exd-banner[data-asset-position="start"] .exd-banner__title {
+    margin-inline-start: auto;
+    text-align: end;
+}
+
+.exd-banner__stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    transform: scale(var(--exd-banner-asset-scale));
+    filter: drop-shadow(0 18px 26px rgba(20, 2, 34, 0.45));
+}
+
+/* --- decorative fallback ---------------------------------------------------
+   Shown only when no asset is configured. This is deliberately abstract: it
+   holds the slot and carries the same depth and glow as a real 3D render,
+   without inventing product imagery that does not exist yet.
+   --------------------------------------------------------------------------- */
+
+.exd-banner__orbs {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.exd-banner__orbs i {
+    position: absolute;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.15) 38%, transparent 60%),
+        var(--exd-banner-grad);
+    box-shadow:
+        inset 0 -8px 18px rgba(28, 4, 44, 0.4),
+        0 16px 30px rgba(20, 2, 34, 0.42);
+}
+
+.exd-banner__orbs i:nth-child(1) { width: 33%; aspect-ratio: 1; inset-inline-end: 10%; top: 6%; }
+.exd-banner__orbs i:nth-child(2) { width: 19%; aspect-ratio: 1; inset-inline-end: 42%; top: 47%; }
+.exd-banner__orbs i:nth-child(3) { width: 12%; aspect-ratio: 1; inset-inline-end: 58%; top: 16%;
+    background: radial-gradient(circle at 34% 30%, #fff, rgba(255,255,255,.55) 42%, var(--exd-banner-accent) 74%); }
+
+/* --- interaction -----------------------------------------------------------
+   The banner is a link. It is seen on every visit, so nothing loops and
+   nothing moves on its own. Hover is a small lift, gated to real pointers;
+   press is a shallow scale, because the element is very wide and a deep one
+   reads as the whole row flinching.
+   --------------------------------------------------------------------------- */
+
+.exd-banner__pill,
+.exd-banner__stage img {
+    transition: transform 200ms cubic-bezier(0.2, 0.75, 0.2, 1),
+                box-shadow 200ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .exd-banner:hover .exd-banner__pill {
+        transform: translateY(-3px);
+        box-shadow: 0 26px 56px -12px var(--exd-banner-glow);
+    }
+
+    .exd-banner:hover .exd-banner__stage img {
+        transform: scale(calc(var(--exd-banner-asset-scale) * 1.03));
+    }
+}
+
+.exd-banner:active .exd-banner__pill {
+    transform: scale(0.995);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .exd-banner:hover .exd-banner__pill,
+    .exd-banner:active .exd-banner__pill,
+    .exd-banner:hover .exd-banner__stage img {
+        transform: none;
+    }
+}
+
+/* --- responsive ------------------------------------------------------------
+   The reference is 4.6:1, which is far too wide for a phone. Rather than
+   letting the title shrink to nothing, the pill gets proportionally taller and
+   the asset stage narrows, so the same composition survives at every width.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+    .exd-banner {
+        --exd-banner-h: clamp(76px, 13vw, 116px);
+        --exd-banner-asset-width: 42%;
+    }
+
+    .exd-banner__pill { padding-inline: 8% 4%; }
+    .exd-banner__title { max-width: 56%; }
+}
+
+@media (max-width: 560px) {
+    .exd-banner {
+        --exd-banner-h: 78px;
+        --exd-banner-size: clamp(14px, 4.4vw, 19px);
+        --exd-banner-asset-width: 40%;
+        --exd-banner-overflow-top: calc(var(--exd-banner-h) * 0.34);
+        --exd-banner-overflow-bottom: calc(var(--exd-banner-h) * 0.18);
+    }
+
+    .exd-banner__pill { padding-inline: 7% 3%; }
+    .exd-banner__title { max-width: 58%; }
+    .exd-banner__pill::after { filter: blur(18px); }
+}
+
+/* A column of banners, one per section. Spacing accounts for the fact that the
+   assets overflow the pill, so the visual gap is smaller than the box gap. */
+.section-banners {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 26px;
+}

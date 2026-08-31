@@ -1,5 +1,6 @@
 <?php
 require_once "db_connect.php";
+require_once "banner.php";
 $page_title = "Elawaady XDigital Platform | المتجر الرسمي";
 $featured_categories = fetch_all($conn, "SELECT * FROM store_categories WHERE is_active=1 ORDER BY sort_order ASC LIMIT 12");
 $featured_services = fetch_all($conn, "SELECT s.*, c.name AS category_name FROM store_services s LEFT JOIN store_categories c ON c.id=s.category_id WHERE s.is_active=1 ORDER BY s.sort_order ASC, s.id DESC LIMIT 12");

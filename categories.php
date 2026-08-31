@@ -1,5 +1,6 @@
 <?php
 require_once "db_connect.php";
+require_once "banner.php";
 $page_title = "الأقسام الرئيسية | Elawaady XDigital Platform";
 $categories = fetch_all($conn, "SELECT * FROM store_categories WHERE is_active=1 ORDER BY sort_order ASC, id ASC");
 require_once "header.php";
@@ -15,6 +16,12 @@ require_once "header.php";
 
 <section class="section">
     <div class="container">
+        <div class="section-banners">
+            <?php foreach ($categories as $cat): ?>
+                <?= exd_category_banner($conn, $cat) ?>
+            <?php endforeach; ?>
+        </div>
+
         <div class="category-grid">
             <?php foreach ($categories as $cat): ?>
                 <a class="category-card" href="subcategories.php?category_id=<?= e($cat['id']) ?>">
