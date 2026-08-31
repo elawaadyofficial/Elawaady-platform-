@@ -9,6 +9,7 @@ on:
       - Catalog Visual Contract
       - Backend production safety gate
       - Auth Integration
+      - Order Wallet Integration
     types: [completed]
 
 permissions:
@@ -35,6 +36,7 @@ jobs:
               'Catalog Visual Contract',
               'Backend production safety gate',
               'Auth Integration',
+              'Order Wallet Integration',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;
