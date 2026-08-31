@@ -47,6 +47,50 @@ jobs:
               -print0
           )
 
+      - name: Guard homepage composition contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          required = {
+              Path('index.php'): [
+                  'require_once "sections.php";',
+                  'exd_category_bands(',
+                  "exd_banners_for($conn, 'home_mid')",
+                  "exd_banners_for($conn, 'home_bottom')",
+              ],
+              Path('header.php'): [
+                  'exd-layouts.css',
+              ],
+          }
+
+          failures = []
+          for path, needles in required.items():
+              if not path.exists():
+                  failures.append(f'{path}: file missing')
+                  continue
+              text = path.read_text(encoding='utf-8')
+              for needle in needles:
+                  if needle not in text:
+                      failures.append(f'{path}: missing required homepage contract token: {needle}')
+
+          if not Path('sections.php').exists():
+              failures.append('sections.php: renderer missing')
+          if not Path('exd-layouts.css').exists():
+              failures.append('exd-layouts.css: layout stylesheet missing')
+
+          if failures:
+              print('ERROR: homepage composition contract regressed:', file=sys.stderr)
+              for failure in failures:
+                  print(f'  - {failure}', file=sys.stderr)
+              raise SystemExit(1)
+
+          print('Homepage composition contract is intact.')
+          PY
+
       - name: Guard migrations against destructive SQL
         shell: bash
         run: |
