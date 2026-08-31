@@ -9,6 +9,9 @@
 - [ ] **Storefront Safety** passes on the final commit.
 - [ ] **Homepage Contract** passes when homepage composition files are changed.
 - [ ] **Migration Smoke** passes when storefront migrations are changed.
+- [ ] **Catalog Visual Contract** passes when category/subcategory presentation changes.
+- [ ] **Backend production safety gate** passes when backend files change.
+- [ ] **Staging Readiness** is green before treating the branch as a release candidate.
 
 ### Database safety
 - [ ] Schema changes are additive/non-destructive unless separately reviewed and explicitly approved.

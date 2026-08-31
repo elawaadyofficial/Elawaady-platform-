@@ -7,6 +7,7 @@ on:
       - Homepage Contract
       - Migration Smoke
       - Catalog Visual Contract
+      - Backend production safety gate
     types: [completed]
 
 permissions:
@@ -31,6 +32,7 @@ jobs:
               'Homepage Contract',
               'Migration Smoke',
               'Catalog Visual Contract',
+              'Backend production safety gate',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;
