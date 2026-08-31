@@ -1,7 +1,12 @@
 <?php
+require_once __DIR__ . '/lib/auth.php';
+auth_boot();
+
 if (!isset($page_title)) {
     $page_title = "Elawaady XDigital Platform";
 }
+
+$exd_account = auth_user();
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -23,6 +28,7 @@ if (!isset($page_title)) {
     <link rel="stylesheet" href="exd-sections.css">
     <link rel="stylesheet" href="exd-layouts.css">
     <link rel="stylesheet" href="exd-banner.css">
+    <link rel="stylesheet" href="exd-account.css">
     <link rel="stylesheet" href="motion.css">
     <link rel="stylesheet" href="exd-interaction.css">
 </head>
@@ -54,6 +60,13 @@ if (!isset($page_title)) {
         <div class="header-actions">
             <a class="header-action" href="contact.php"><span>◉</span><b>الدعم</b></a>
             <a class="header-action" href="search.php"><span>⌕</span><b>بحث</b></a>
+<?php if ($exd_account !== null): ?>
+            <a class="header-action header-action--account" href="<?= $exd_account['account_type'] === 'supplier' ? 'supplier-dashboard.php' : 'account.php' ?>">
+                <span>◆</span><b><?= e(mb_strimwidth((string) $exd_account['name'], 0, 14, '…')) ?></b>
+            </a>
+<?php else: ?>
+            <a class="header-action header-action--account" href="login.php"><span>◆</span><b>حسابي</b></a>
+<?php endif; ?>
             <button class="menu-toggle" type="button" aria-label="فتح القائمة">☰</button>
         </div>
     </div>

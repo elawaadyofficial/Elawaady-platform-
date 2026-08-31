@@ -1,0 +1,420 @@
+/* ============================================================================
+   EXD — accounts, forms and the signed-in area
+   ----------------------------------------------------------------------------
+   Everything here is built from the token layer, so the account pages inherit
+   the storefront's ground, type and motion rather than restating them.
+
+   The colour rule the storefront follows holds here too: the brand gradient is
+   spent on one thing per view — the button that commits the action. A form has
+   exactly one of those, and it is the submit.
+   ========================================================================== */
+
+/* ── Page shells ─────────────────────────────────────────────────────────── */
+
+.auth-wrap {
+    padding-block: clamp(40px, 7vw, 96px);
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+}
+
+.auth-card {
+    max-width: 460px;
+    margin-inline: auto;
+    padding: clamp(24px, 4vw, 40px);
+    border-radius: var(--exd-radius-xl);
+    border: 1px solid var(--exd-border);
+    background:
+        radial-gradient(120% 100% at 50% 0%, rgba(168, 85, 247, .09), transparent 62%),
+        var(--exd-bg-panel);
+    box-shadow: var(--exd-shadow-lg);
+}
+
+.auth-card-wide { max-width: 640px; }
+
+.auth-card h1 {
+    font-size: var(--exd-fs-xl);
+    font-weight: var(--exd-fw-black);
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+}
+
+.auth-sub {
+    color: var(--exd-text-muted);
+    font-size: var(--exd-fs-sm);
+    margin: 0 0 24px;
+    line-height: var(--exd-lh-snug);
+}
+
+/* ── Form controls ───────────────────────────────────────────────────────── */
+
+.auth-form,
+.account-form { display: grid; gap: 16px; }
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.form-group { display: grid; gap: 7px; min-width: 0; }
+
+.form-label {
+    font-size: var(--exd-fs-sm);
+    font-weight: var(--exd-fw-semibold);
+    color: var(--exd-text-soft);
+}
+
+.form-label .req { color: var(--exd-pink-300); }
+
+.label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.form-link {
+    font-size: var(--exd-fs-xs);
+    color: var(--exd-violet-300);
+    text-decoration: none;
+}
+.form-link:hover { text-decoration: underline; }
+
+.form-input {
+    width: 100%;
+    padding: 12px 14px;
+    font: inherit;
+    font-size: var(--exd-fs-sm);
+    color: var(--exd-text);
+    background: var(--exd-bg-inset);
+    border: 1px solid var(--exd-border);
+    border-radius: var(--exd-radius-md);
+    /* Only the properties that are cheap to animate. */
+    transition: border-color var(--exd-dur-fast) var(--exd-ease-out),
+                box-shadow  var(--exd-dur-fast) var(--exd-ease-out),
+                background  var(--exd-dur-fast) var(--exd-ease-out);
+}
+
+.form-input::placeholder { color: var(--exd-text-muted); opacity: .7; }
+
+.form-input:hover:not(:disabled) { border-color: var(--exd-border-strong); }
+
+.form-input:focus-visible,
+.form-input:focus {
+    outline: none;
+    border-color: var(--exd-violet-400);
+    background: var(--exd-bg-raise);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, .18);
+}
+
+.form-input:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.form-textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: var(--exd-lh-base);
+}
+
+.form-hint {
+    font-size: var(--exd-fs-xs);
+    color: var(--exd-text-muted);
+    line-height: var(--exd-lh-snug);
+}
+
+.form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: var(--exd-fs-sm);
+    color: var(--exd-text-soft);
+}
+
+.form-check input[type="checkbox"] {
+    inline-size: 18px;
+    block-size: 18px;
+    margin-block-start: 2px;
+    accent-color: var(--exd-violet-400);
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+.form-check label { cursor: pointer; line-height: var(--exd-lh-snug); }
+.form-check a { color: var(--exd-violet-300); }
+
+.btn-full { width: 100%; }
+
+/* ── Account type chooser ────────────────────────────────────────────────── */
+
+.account-type-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.type-tab {
+    display: grid;
+    gap: 4px;
+    padding: 16px 14px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--exd-text-soft);
+    background: var(--exd-bg-inset);
+    border: 1px solid var(--exd-border);
+    border-radius: var(--exd-radius-lg);
+    transition: transform var(--exd-dur-fast) var(--exd-ease-out),
+                border-color var(--exd-dur-fast) var(--exd-ease-out),
+                background var(--exd-dur-fast) var(--exd-ease-out);
+}
+
+.type-tab strong { font-size: var(--exd-fs-sm); color: var(--exd-text); }
+.type-tab small  { font-size: var(--exd-fs-xs); color: var(--exd-text-muted); line-height: 1.45; }
+.type-icon       { font-size: 20px; color: var(--exd-violet-300); }
+
+@media (hover: hover) and (pointer: fine) {
+    .type-tab:hover {
+        transform: translateY(-2px);
+        border-color: var(--exd-border-strong);
+        background: var(--exd-bg-raise);
+    }
+}
+
+.type-tab.is-active {
+    border-color: var(--exd-violet-400);
+    background: var(--exd-bg-raise);
+    box-shadow: 0 0 0 1px rgba(168, 85, 247, .25) inset;
+}
+
+/* ── Messages ────────────────────────────────────────────────────────────── */
+
+.alert {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 13px 15px;
+    margin-bottom: 16px;
+    border-radius: var(--exd-radius-md);
+    border: 1px solid var(--exd-border);
+    background: var(--exd-bg-inset);
+    font-size: var(--exd-fs-sm);
+    line-height: var(--exd-lh-snug);
+    color: var(--exd-text-soft);
+}
+
+.alert > span { flex: 0 0 auto; font-size: 15px; line-height: 1.4; }
+.alert strong { color: var(--exd-text); display: block; margin-bottom: 3px; }
+.alert p { margin: 0; }
+
+.alert-success { border-color: rgba(52, 211, 153, .35); background: rgba(16, 185, 129, .09); }
+.alert-error   { border-color: rgba(248, 113, 113, .35); background: rgba(239,  68,  68, .09); }
+.alert-info    { border-color: rgba(168,  85, 247, .35); background: rgba(168,  85, 247, .08); }
+
+/* ── Signed-in area ──────────────────────────────────────────────────────── */
+
+.account-shell { padding-block: clamp(28px, 5vw, 64px); }
+
+.account-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.account-head h1 {
+    font-size: var(--exd-fs-xl);
+    font-weight: var(--exd-fw-black);
+    margin: 0 0 4px;
+}
+
+.account-head p {
+    margin: 0;
+    color: var(--exd-text-muted);
+    font-size: var(--exd-fs-sm);
+}
+
+.account-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    padding-bottom: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--exd-border);
+}
+.account-tabs::-webkit-scrollbar { display: none; }
+
+.account-tab {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    font-size: var(--exd-fs-sm);
+    font-weight: var(--exd-fw-semibold);
+    color: var(--exd-text-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color var(--exd-dur-fast) var(--exd-ease-out),
+                border-color var(--exd-dur-fast) var(--exd-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .account-tab:hover { color: var(--exd-text); }
+}
+
+.account-tab.is-active {
+    color: var(--exd-text);
+    border-bottom-color: var(--exd-violet-400);
+}
+
+.account-section-title {
+    font-size: var(--exd-fs-md);
+    font-weight: var(--exd-fw-bold);
+    margin: 28px 0 14px;
+}
+
+/* ── Statistics ──────────────────────────────────────────────────────────── */
+
+.account-stats,
+.wallet-head {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+}
+
+.stat-card {
+    display: grid;
+    gap: 6px;
+    padding: 20px;
+    border-radius: var(--exd-radius-lg);
+    border: 1px solid var(--exd-border);
+    background:
+        radial-gradient(110% 130% at 100% 0%, rgba(168, 85, 247, .08), transparent 60%),
+        var(--exd-bg-panel);
+}
+
+.stat-card--wide { grid-column: span 2; }
+
+.stat-value {
+    font-size: var(--exd-fs-lg);
+    font-weight: var(--exd-fw-black);
+    font-variant-numeric: tabular-nums;
+    color: var(--exd-text);
+}
+
+.stat-label {
+    font-size: var(--exd-fs-xs);
+    color: var(--exd-text-muted);
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+
+/* A table is the one thing allowed to scroll sideways, and it does so inside
+   its own box — never by widening the page. */
+.account-table-wrap {
+    overflow-x: auto;
+    border-radius: var(--exd-radius-lg);
+    border: 1px solid var(--exd-border);
+    background: var(--exd-bg-panel);
+}
+
+.account-table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: var(--exd-fs-sm);
+}
+
+.account-table th,
+.account-table td {
+    padding: 12px 14px;
+    text-align: start;
+    white-space: nowrap;
+}
+
+.account-table thead th {
+    font-size: var(--exd-fs-xs);
+    font-weight: var(--exd-fw-semibold);
+    color: var(--exd-text-muted);
+    background: var(--exd-bg-inset);
+    border-bottom: 1px solid var(--exd-border);
+}
+
+.account-table tbody tr + tr { border-top: 1px solid var(--exd-border-wash); }
+
+.account-table tbody tr {
+    transition: background var(--exd-dur-fast) var(--exd-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .account-table tbody tr:hover { background: var(--exd-bg-raise); }
+}
+
+.account-table a { color: var(--exd-violet-300); text-decoration: none; }
+.account-table a:hover { text-decoration: underline; }
+
+.amount-in  { color: #34d399; font-variant-numeric: tabular-nums; }
+.amount-out { color: #f87171; font-variant-numeric: tabular-nums; }
+
+/* ── Status pills ────────────────────────────────────────────────────────── */
+
+.pill {
+    display: inline-block;
+    padding: 4px 11px;
+    border-radius: var(--exd-radius-pill);
+    font-size: var(--exd-fs-xs);
+    font-weight: var(--exd-fw-semibold);
+    border: 1px solid var(--exd-border);
+    background: var(--exd-bg-inset);
+    color: var(--exd-text-soft);
+    white-space: nowrap;
+}
+
+.pill--new,
+.pill--waiting_approval,
+.pill--waiting_payment { border-color: rgba(251, 191,  36, .35); color: #fbbf24; background: rgba(251, 191, 36, .1); }
+.pill--paid,
+.pill--in_progress     { border-color: rgba(168,  85, 247, .35); color: var(--exd-violet-300); background: rgba(168, 85, 247, .1); }
+.pill--delivered,
+.pill--completed       { border-color: rgba( 52, 211, 153, .35); color: #34d399; background: rgba(16, 185, 129, .1); }
+.pill--cancelled,
+.pill--refunded        { border-color: rgba(148, 163, 184, .3);  color: var(--exd-text-muted); }
+.pill--dispute         { border-color: rgba(248, 113, 113, .35); color: #f87171; background: rgba(239, 68, 68, .1); }
+.pill--current         { border-color: rgba(168,  85, 247, .4);  color: var(--exd-violet-300); }
+
+/* ── Empty states ────────────────────────────────────────────────────────── */
+
+.empty-state {
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+    padding: clamp(32px, 6vw, 64px) 20px;
+    text-align: center;
+    border-radius: var(--exd-radius-lg);
+    border: 1px dashed var(--exd-border-strong);
+    background: var(--exd-bg-panel);
+    color: var(--exd-text-muted);
+}
+
+.empty-state p { margin: 0; font-size: var(--exd-fs-sm); }
+
+.account-note {
+    margin-top: 16px;
+    font-size: var(--exd-fs-sm);
+    color: var(--exd-text-muted);
+}
+.account-note a { color: var(--exd-violet-300); }
+
+/* ── Narrow screens ──────────────────────────────────────────────────────── */
+
+@media (max-width: 620px) {
+    .form-row,
+    .account-type-tabs { grid-template-columns: 1fr; }
+    .stat-card--wide   { grid-column: span 1; }
+    .account-head      { align-items: flex-start; }
+}
