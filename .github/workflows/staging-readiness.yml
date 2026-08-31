@@ -8,6 +8,7 @@ on:
       - Migration Smoke
       - Catalog Visual Contract
       - Backend production safety gate
+      - Auth Integration
     types: [completed]
 
 permissions:
@@ -33,6 +34,7 @@ jobs:
               'Migration Smoke',
               'Catalog Visual Contract',
               'Backend production safety gate',
+              'Auth Integration',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;
