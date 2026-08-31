@@ -1,0 +1,88 @@
+name: Catalog Visual Contract
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+    paths:
+      - 'categories.php'
+      - 'subcategories.php'
+      - 'exd-layouts.css'
+      - '.github/workflows/catalog-visual-contract.yml'
+  pull_request:
+    paths:
+      - 'categories.php'
+      - 'subcategories.php'
+      - 'exd-layouts.css'
+      - '.github/workflows/catalog-visual-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-visual-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  catalog-contract:
+    name: Category and subcategory visual contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate storefront catalog contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          contracts = {
+              Path('categories.php'): [
+                  "$cat['image']",
+                  'class="exd-media"',
+                  'loading="lazy"',
+                  'class="card-body"',
+                  'class="card-actions"',
+                  'btn-card--minor',
+                  '>التفاصيل</a>',
+                  '>اطلب الآن</a>',
+              ],
+              Path('subcategories.php'): [
+                  "$sub['image']",
+                  'class="exd-media"',
+                  'loading="lazy"',
+                  'class="card-body"',
+                  'class="card-actions"',
+                  '>تصفح القسم</a>',
+                  '>التفاصيل</a>',
+                  '>اطلب الآن</a>',
+              ],
+              Path('exd-layouts.css'): [
+                  '.exd-media',
+                  '.card-actions',
+              ],
+          }
+
+          failures = []
+          for path, needles in contracts.items():
+              if not path.exists():
+                  failures.append(f'{path}: required storefront file missing')
+                  continue
+              text = path.read_text(encoding='utf-8')
+              for needle in needles:
+                  if needle not in text:
+                      failures.append(f'{path}: missing catalog contract token: {needle}')
+
+          if failures:
+              print('ERROR: storefront catalog visual contract regressed:', file=sys.stderr)
+              for failure in failures:
+                  print(f'  - {failure}', file=sys.stderr)
+              raise SystemExit(1)
+
+          print('Catalog visual contract is intact: media slots, card bodies, and actions are present.')
+          PY

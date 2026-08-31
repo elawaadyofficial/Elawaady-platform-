@@ -1,0 +1,114 @@
+name: Staging Readiness
+
+on:
+  workflow_run:
+    workflows:
+      - Storefront Safety
+      - Homepage Contract
+      - Migration Smoke
+      - Catalog Visual Contract
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: staging-readiness-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify-required-checks:
+    if: github.event.workflow_run.head_branch == 'chatgpt/store-build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify staging prerequisite workflows
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const required = [
+              'Storefront Safety',
+              'Homepage Contract',
+              'Migration Smoke',
+              'Catalog Visual Contract',
+            ];
+            const trigger = context.payload.workflow_run;
+            const sha = trigger.head_sha;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = 'chatgpt/store-build';
+
+            // A failure on the candidate commit must block immediately.
+            if (required.includes(trigger.name) && trigger.conclusion !== 'success') {
+              core.setFailed(`${trigger.name} failed for staging candidate ${sha} with conclusion: ${trigger.conclusion || 'unknown'}`);
+              return;
+            }
+
+            // Inspect completed runs of every required workflow. Path filters mean a workflow
+            // may legitimately not run on the candidate commit, so the latest applicable run
+            // on the candidate or one of its ancestors becomes authoritative.
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              branch,
+              status: 'completed',
+              per_page: 100,
+            });
+
+            const candidates = new Map(required.map(name => [name, []]));
+            for (const run of data.workflow_runs) {
+              if (required.includes(run.name)) candidates.get(run.name).push(run);
+            }
+
+            const accepted = new Map();
+            const failures = [];
+
+            for (const name of required) {
+              const runs = candidates.get(name)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+              let latestApplicable = null;
+              for (const run of runs) {
+                if (run.head_sha === sha) {
+                  latestApplicable = run;
+                  break;
+                }
+
+                try {
+                  const comparison = await github.rest.repos.compareCommits({
+                    owner,
+                    repo,
+                    base: run.head_sha,
+                    head: sha,
+                  });
+                  if (comparison.data.status === 'ahead' || comparison.data.status === 'identical') {
+                    latestApplicable = run;
+                    break;
+                  }
+                } catch (error) {
+                  core.debug(`Unable to compare ${run.head_sha} to ${sha}: ${error.message}`);
+                }
+              }
+
+              if (!latestApplicable) {
+                failures.push(`${name}: no completed run found on this commit or an ancestor`);
+                continue;
+              }
+
+              if (latestApplicable.conclusion !== 'success') {
+                failures.push(`${name}: latest applicable run ${latestApplicable.id} at ${latestApplicable.head_sha} concluded ${latestApplicable.conclusion || 'unknown'}`);
+                continue;
+              }
+
+              accepted.set(name, latestApplicable);
+            }
+
+            if (failures.length) {
+              core.setFailed(`Staging is not ready for ${sha}. ${failures.join('; ')}`);
+              return;
+            }
+
+            for (const [name, run] of accepted) {
+              core.info(`${name}: accepted latest applicable successful run ${run.id} at ${run.head_sha}`);
+            }
+            core.notice(`Staging prerequisites are green for ${sha}. This workflow performs validation only and never deploys.`);

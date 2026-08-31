@@ -25,6 +25,20 @@ function is_live_elawaady_host(string $host): bool {
     return $host === 'elawaady.com' || str_ends_with($host, '.elawaady.com');
 }
 
+function php_lint(string $file): ?string {
+    $command = escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($file) . ' 2>&1';
+    $output = [];
+    $exitCode = 0;
+    exec($command, $output, $exitCode);
+
+    if ($exitCode === 0) {
+        return null;
+    }
+
+    $details = trim(implode("\n", $output));
+    return $details !== '' ? $details : 'PHP lint failed with exit code ' . $exitCode . '.';
+}
+
 $errors = [];
 $warnings = [];
 
@@ -57,20 +71,45 @@ if (!extension_loaded('mysqli')) {
     $errors[] = 'PHP mysqli extension is required.';
 }
 
-$requiredFiles = [
+$criticalPhpFiles = [
+    // Critical storefront routes.
     'index.php',
+    'categories.php',
+    'subcategories.php',
+    'service.php',
+    'search.php',
+    'contact.php',
+
+    // Shared storefront composition/runtime.
     'header.php',
     'footer.php',
+    'sections.php',
     'db_connect.php',
+];
+
+$runtimeAssets = [
     'storefront.css',
     'exd-tokens.css',
     'exd-media.css',
+    'exd-layouts.css',
     'main.js',
 ];
 
-foreach ($requiredFiles as $file) {
+foreach (array_merge($criticalPhpFiles, $runtimeAssets) as $file) {
     if (!is_file(__DIR__ . DIRECTORY_SEPARATOR . $file)) {
         $errors[] = 'Missing required storefront file: ' . $file;
+    }
+}
+
+foreach ($criticalPhpFiles as $file) {
+    $path = __DIR__ . DIRECTORY_SEPARATOR . $file;
+    if (!is_file($path)) {
+        continue;
+    }
+
+    $lintError = php_lint($path);
+    if ($lintError !== null) {
+        $errors[] = 'PHP syntax check failed for ' . $file . ': ' . $lintError;
     }
 }
 
@@ -91,5 +130,6 @@ foreach ($warnings as $warning) {
     fwrite(STDOUT, ' ! ' . $warning . "\n");
 }
 
-fwrite(STDOUT, "No database connection or data mutation was performed.\n");
+fwrite(STDOUT, "Validated critical storefront routes, shared composition files, runtime assets, and PHP syntax.\n");
+fwrite(STDOUT, "No database connection, application route execution, or data mutation was performed.\n");
 exit(0);

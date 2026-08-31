@@ -24,11 +24,26 @@ require_once "header.php";
 
         <div class="category-grid">
             <?php foreach ($categories as $cat): ?>
-                <a class="category-card" href="subcategories.php?category_id=<?= e($cat['id']) ?>">
-                    <div class="category-icon"><?= e($cat['icon']) ?></div>
-                    <h3><?= e($cat['name']) ?></h3>
-                    <p><?= e($cat['description']) ?></p>
-                </a>
+                <?php
+                $category_href = "subcategories.php?category_id=" . (int)$cat['id'];
+                $category_image = trim((string)($cat['image'] ?? ''));
+                ?>
+                <article class="category-card">
+                    <?php if ($category_image !== ''): ?>
+                        <div class="exd-media">
+                            <img src="<?= e($category_image) ?>" alt="<?= e($cat['name']) ?>" loading="lazy" decoding="async">
+                        </div>
+                    <?php endif; ?>
+                    <div class="card-body">
+                        <div class="category-icon"><?= e($cat['icon']) ?></div>
+                        <h3><a class="card-link" href="<?= e($category_href) ?>"><?= e($cat['name']) ?></a></h3>
+                        <p><?= e($cat['description']) ?></p>
+                        <div class="card-actions">
+                            <a class="btn btn-secondary btn-card btn-card--minor" href="<?= e($category_href) ?>">التفاصيل</a>
+                            <a class="btn btn-primary btn-card" href="<?= e($category_href) ?>">اطلب الآن</a>
+                        </div>
+                    </div>
+                </article>
             <?php endforeach; ?>
         </div>
     </div>
