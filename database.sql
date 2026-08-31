@@ -1,3 +1,21 @@
+-- ############################################################################
+-- #  DANGER — THIS FILE IS A BOOTSTRAP, NOT A MIGRATION.                      #
+-- #                                                                          #
+-- #  It begins with DROP TABLE. Running it against a database that holds      #
+-- #  real rows destroys them. It exists only to create an empty catalogue on  #
+-- #  a brand-new database.                                                    #
+-- #                                                                          #
+-- #  Do not pipe this file into mysql by hand. Run:                           #
+-- #                                                                          #
+-- #      php bootstrap.php                                                    #
+-- #                                                                          #
+-- #  which refuses to proceed if any table in the target database contains    #
+-- #  data, and then hands off to `php migrate.php` for everything since.      #
+-- #                                                                          #
+-- #  To add or change schema, write a file in migrations/. Never edit this    #
+-- #  one, and never run it on staging or production.                         #
+-- ############################################################################
+
 CREATE DATABASE IF NOT EXISTS elawaady_store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE elawaady_store;
 
