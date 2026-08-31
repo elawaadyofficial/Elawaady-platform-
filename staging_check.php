@@ -58,13 +58,25 @@ if (!extension_loaded('mysqli')) {
 }
 
 $requiredFiles = [
+    // Critical storefront routes.
     'index.php',
+    'categories.php',
+    'subcategories.php',
+    'service.php',
+    'search.php',
+    'contact.php',
+
+    // Shared storefront composition/runtime.
     'header.php',
     'footer.php',
+    'sections.php',
     'db_connect.php',
+
+    // Critical presentation/runtime assets.
     'storefront.css',
     'exd-tokens.css',
     'exd-media.css',
+    'exd-layouts.css',
     'main.js',
 ];
 
@@ -91,5 +103,6 @@ foreach ($warnings as $warning) {
     fwrite(STDOUT, ' ! ' . $warning . "\n");
 }
 
+fwrite(STDOUT, "Validated critical storefront routes, shared composition files, and runtime assets.\n");
 fwrite(STDOUT, "No database connection or data mutation was performed.\n");
 exit(0);
