@@ -1,0 +1,132 @@
+name: Migration Smoke
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+    paths:
+      - 'migrations/**/*.sql'
+      - '.github/workflows/migration-smoke.yml'
+  pull_request:
+    paths:
+      - 'migrations/**/*.sql'
+      - '.github/workflows/migration-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-smoke:
+    name: Apply additive migrations on ephemeral MariaDB
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root-ci-only
+          MARIADB_DATABASE: exd_migration_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MariaDB client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+
+      - name: Create minimal prerequisite schema
+        env:
+          MYSQL_PWD: root-ci-only
+        run: |
+          mysql -h 127.0.0.1 -uroot exd_migration_ci <<'SQL'
+          CREATE TABLE store_categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+          CREATE TABLE store_subcategories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            category_id INT NULL,
+            name VARCHAR(255) NOT NULL,
+            description TEXT NULL
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+          CREATE TABLE store_services (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            price DECIMAL(10,2) NOT NULL DEFAULT 0
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+          SQL
+
+      - name: Apply migrations in filename order
+        env:
+          MYSQL_PWD: root-ci-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          migrations=(migrations/*.sql)
+          if (( ${#migrations[@]} == 0 )); then
+            echo 'No storefront migrations found.' >&2
+            exit 1
+          fi
+          for migration in "${migrations[@]}"; do
+            echo "Applying $migration"
+            mysql -h 127.0.0.1 -uroot exd_migration_ci < "$migration"
+          done
+
+      - name: Verify expected schema results
+        env:
+          MYSQL_PWD: root-ci-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot -N -B exd_migration_ci <<'SQL' > /tmp/schema-check.txt
+          SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema='exd_migration_ci' AND table_name='store_section_banners';
+          SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_schema='exd_migration_ci' AND table_name='store_subcategories' AND column_name='image';
+          SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_schema='exd_migration_ci' AND table_name='store_services' AND column_name='old_price';
+          SQL
+
+          mapfile -t checks < /tmp/schema-check.txt
+          if [[ "${checks[*]}" != "1 1 1" ]]; then
+            echo "ERROR: migration schema verification failed: ${checks[*]}" >&2
+            exit 1
+          fi
+          echo 'All storefront migrations applied successfully on ephemeral MariaDB.'
+
+      - name: Verify existing data survives additive migrations
+        env:
+          MYSQL_PWD: root-ci-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot exd_migration_ci <<'SQL'
+          INSERT INTO store_categories (name) VALUES ('CI category');
+          INSERT INTO store_subcategories (name, description) VALUES ('CI subcategory', 'kept');
+          INSERT INTO store_services (name, price) VALUES ('CI service', 10.00);
+          SQL
+
+          result=$(mysql -h 127.0.0.1 -uroot -N -B exd_migration_ci -e \
+            "SELECT CONCAT((SELECT COUNT(*) FROM store_categories),':',(SELECT COUNT(*) FROM store_subcategories),':',(SELECT COUNT(*) FROM store_services));")
+          [[ "$result" == "1:1:1" ]] || {
+            echo "ERROR: unexpected row preservation result: $result" >&2
+            exit 1
+          }
+          echo 'Additive migration smoke test preserved existing rows.'
