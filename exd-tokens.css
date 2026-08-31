@@ -132,21 +132,25 @@
     --exd-purple-600: #3b0764;
     --exd-purple-500: #4c1d95;   /* deep purple  */
     --exd-purple-400: #6d28d9;
-    --exd-violet-500: #8b2cf5;   /* electric violet — core brand */
-    --exd-violet-400: #a855f7;
+    --exd-violet-500: #a855f7;   /* CTA sweep start — sampled #ac56eb */
+    --exd-violet-400: #b95ff0;
     --exd-violet-300: #c96cff;
     --exd-violet-200: #d8b4fe;
 
-    --exd-magenta-600: #c026a3;
-    --exd-magenta-500: #e63ea9;
-    --exd-magenta-400: #ff5cab;
-    --exd-pink-300: #ff8fd0;
+    --exd-magenta-600: #b448d8;  /* sampled */
+    --exd-magenta-500: #c048cc;  /* sampled — dominant accent */
+    --exd-magenta-400: #d848a8;  /* sampled */
+    --exd-pink-300: #e4489c;     /* sampled */
 
-    --exd-orange-600: #e05e00;
-    --exd-orange-500: #ff7a18;   /* logo accent orange */
-    --exd-orange-400: #ff9a1f;
-    --exd-gold-500: #ffd31a;
-    --exd-gold-400: #ffe31c;
+    --exd-orange-600: #e06a00;
+    --exd-orange-500: #fc8400;   /* sampled — fully saturated */
+    --exd-orange-400: #f0a824;   /* sampled */
+    --exd-gold-500: #fcb623;     /* sampled — CTA sweep end */
+    --exd-gold-400: #f6c707;     /* sampled */
+
+    /* Status accents sampled from the live service cards. */
+    --exd-teal-400: #30d6b0;     /* "متاح 24/7" badge text */
+    --exd-gold-bar: #d4a64e;     /* account progress bar   */
 
     /* Metallic — sampled from the EXD logo mark. */
     --exd-metal-hi: #f4f6f8;
@@ -159,20 +163,22 @@
        4. SURFACES
        ====================================================================== */
 
-    --exd-bg-base: #030007;      /* page floor, deepest black          */
-    --exd-bg-deep: #080211;      /* body gradient end                  */
-    --exd-bg-raise: #0d0618;     /* raised block                       */
-    --exd-bg-panel: #160b29;     /* card / panel                       */
-    --exd-bg-panel-2: #21103b;   /* hovered / elevated panel           */
-    --exd-bg-inset: #11031f;     /* wells, carousel interiors          */
+    --exd-bg-base: #0a040e;      /* page floor — sampled               */
+    --exd-bg-deep: #100820;      /* body gradient end — sampled        */
+    --exd-bg-raise: #150d22;     /* page ground — sampled              */
+    --exd-bg-panel: #1b0f37;     /* card / panel — sampled             */
+    --exd-bg-panel-2: #22163c;   /* hovered / elevated — sampled       */
+    --exd-bg-inset: #1a2640;     /* wells, badge grounds — sampled     */
+    --exd-cover: #4c2276;        /* account cover wash — sampled       */
 
     --exd-fg: #ffffff;
     --exd-fg-soft: rgba(255, 255, 255, 0.82);
     --exd-fg-muted: #9d91aa;
     --exd-fg-dim: #6f6879;
 
-    --exd-border: rgba(255, 255, 255, 0.08);
-    --exd-border-strong: rgba(255, 255, 255, 0.15);
+    --exd-border: #41286c;       /* sampled — outlined badges/cards    */
+    --exd-border-strong: #5b3a8f;
+    --exd-border-wash: rgba(255, 255, 255, 0.08);
     --exd-border-brand: rgba(196, 112, 255, 0.22);
     --exd-border-accent: rgba(255, 122, 24, 0.24);
 
