@@ -285,12 +285,8 @@ a {
 .category-grid,
 .service-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
-}
-
-.service-grid {
-    grid-template-columns: repeat(3, 1fr);
 }
 
 .category-card,
@@ -480,7 +476,7 @@ a {
 
     .category-grid,
     .service-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
     }
 
     .footer-grid {
@@ -528,7 +524,29 @@ a {
 
     .category-grid,
     .service-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    /* Compact card: three must fit side by side at 360px without overlap. */
+    .category-card,
+    .service-card {
+        padding: 10px;
+    }
+
+    .category-card h3,
+    .service-card h3 {
+        font-size: 13px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        line-clamp: 2;
+        overflow: hidden;
+    }
+
+    .category-card p,
+    .service-meta {
+        display: none;
     }
 
     .stats {

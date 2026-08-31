@@ -12,8 +12,8 @@ Captured 2026-08-30 from sources supplied by the project owner.
 
 The existing EXD store. Its structure, routes and assets are the target this
 repository is being brought up to. This is **EXD's own property** — unlike the
-competitor references (`s-trx.com`, `digital-plus3.com`), whose assets, text
-and designs must never be copied.
+competitor reference stores, whose names, assets, text, branding and designs
+must never appear anywhere in this project.
 
 ### Routes (this repo currently has 6 of them)
 

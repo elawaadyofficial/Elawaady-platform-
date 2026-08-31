@@ -21,27 +21,32 @@ wording and brand marks are deliberately not carried over; EXD's own identity in
 
 Matches the storefront's existing `.container`.
 
-## 2. Grid counts — DECISION PENDING
+## 2. Grid counts — RESOLVED
 
-Two instructions from the owner conflict. Nothing is changed until this is
-resolved.
+The owner chose **5 / 4 / 3**, confirming the earlier brief over this spec's
+4 / 3 / 2. Implemented and verified in Chromium.
 
-| Surface | Option A (this spec) | Option B (owner's earlier brief) | Currently built |
+| Surface | Desktop | Tablet / iPad | Mobile |
 |---|---|---|---|
-| Desktop / laptop | 4 per row | **5 per row** | 4 |
-| Tablet / iPad | 3 per row | **4 per row** | 3 |
-| Mobile | 2 per row | **3 per row** | 2 |
+| Categories (`.category-scroller`, `.category-grid`) | 5 | 4 | 3 |
+| Services / products (`.product-grid`, `.service-grid`) | 5 | 4 | 3 |
 
-Option B was stated as a minimum ("3 كروت جنب بعض كحد أدنى" on mobile) and applies
-to categories, subcategories, services, products, offers and stores alike.
-Option A matches what `storefront.css` already ships.
+Breakpoints: 5 above 1000px · 4 at 1000–761px · 3 at 760px and below.
+Applies to categories, subcategories, services, products, offers and stores
+alike. **Real breakpoints only — never page zoom.**
 
-Card width follows from the choice: at a 1200px container with 20px gaps,
-4-across is ~285px and 5-across is ~208px. The compact mobile card (image,
-title, price, badge, button, line-clamped name, fixed height, aligned baseline)
-is required under either option, and is tighter under Option B.
+Measured card widths: 235px at 1440 · 221px at 1200 · 186px at 1024 ·
+172px at 768 · 115px at 390 · 105px at 360. No horizontal overflow and no
+overlap at 360px.
 
-**Real responsive breakpoints only — never page zoom.**
+Because three cards on a 360px screen leaves ~105px each, the mobile card is
+compact: 9px padding, the name clamped to two lines at a fixed 32px height so
+every card in a row keeps the same height and baseline, the description hidden,
+and the price and CTA stacked with the CTA at full card width.
+
+**Known edge:** a tablet in landscape at 1024px gets 5 columns, since the
+breakpoint is 1000px. Every iPad in portrait (768–834px) gets 4. Raising the
+breakpoint to 1024px is a one-line change if landscape should also show 4.
 
 ## 3. Media dimensions
 
