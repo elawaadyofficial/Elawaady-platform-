@@ -432,7 +432,10 @@
     /* --exd-motion-slow is consumed by exd-media.css but was never declared.
        Aliased to their own slow duration so the media transitions actually
        run instead of silently falling back to the initial value. */
-    --exd-motion-slow: var(--exd-duration-slow);
+    /* Retimed: its only consumer is the card-media hover zoom in
+       exd-media.css. At 520ms a hover effect seen dozens of times a day drags;
+       260ms reads as responsive without losing the ease. */
+    --exd-motion-slow: var(--exd-duration-base);
 }
 
 

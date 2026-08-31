@@ -1,0 +1,129 @@
+/* ============================================================================
+   EXD — Interaction polish
+   ----------------------------------------------------------------------------
+   Loaded last, on purpose. Everything here is additive: it adds press feedback
+   that did not exist, and corrects hover behaviour on touch devices. It changes
+   no colour, no layout and no existing selector's resting state.
+
+   Three problems this fixes, found by auditing the cascade:
+
+     1. Sixteen :hover rules, zero :active rules. Nothing in the interface
+        acknowledged a press.
+     2. None of those hovers were gated. On a phone, a tap fires :hover and the
+        card stays lifted and glowing until you tap elsewhere — it reads as a
+        stuck selection.
+     3. Card media zoomed on hover over 520ms. A hover effect seen dozens of
+        times a day has to be quick or it feels heavy.
+   ========================================================================== */
+
+
+/* ---------------------------------------------------------------------------
+   1. PRESS FEEDBACK
+   Nothing here scales below 0.97: press feedback should be felt, not seen.
+   160ms keeps it inside the window where a press still feels instant.
+   --------------------------------------------------------------------------- */
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+button,
+.menu-toggle,
+.header-action,
+.carousel-arrow,
+.text-link,
+.product-card,
+.category-tile,
+.category-card,
+.service-card,
+.contact-card,
+.main-nav a {
+    transition-property: transform, box-shadow, border-color, background, color;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+button:active,
+.menu-toggle:active,
+.header-action:active,
+.text-link:active {
+    transform: scale(0.97);
+}
+
+/* Cards are large, so they take a shallower press — a full 0.97 on a 285px
+   card reads as the whole grid flinching. */
+.product-card:active,
+.category-tile:active,
+.category-card:active,
+.service-card:active,
+.contact-card:active {
+    transform: scale(0.99);
+}
+
+/* The carousel arrow is already vertically centred by a transform, so its
+   press has to preserve that translate or the button jumps to the top. */
+.carousel-arrow:active {
+    transform: translateY(-50%) scale(0.94);
+}
+
+
+/* ---------------------------------------------------------------------------
+   2. TOUCH DEVICES DO NOT HOVER
+   A tap on a touch screen fires :hover and it sticks. These resets undo the
+   lift, glow and zoom for pointers that cannot truly hover, leaving the press
+   feedback above as the only response — which is the correct one there.
+   --------------------------------------------------------------------------- */
+
+@media (hover: none), (pointer: coarse) {
+    .product-card:hover,
+    .category-tile:hover,
+    .category-card:hover,
+    .service-card:hover,
+    .contact-card:hover {
+        transform: none;
+    }
+
+    .carousel-arrow:hover {
+        transform: translateY(-50%);
+    }
+
+    .exd-media:hover img,
+    .exd-media:hover video,
+    .product-card:hover .exd-media img,
+    .category-tile:hover .exd-media img {
+        transform: none;
+    }
+}
+
+
+/* ---------------------------------------------------------------------------
+   3. REDUCED MOTION
+   Reduced motion means gentler, not absent. The press feedback is a scale, so
+   it goes; colour and border responses stay, because they carry meaning.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .btn:active,
+    .btn-primary:active,
+    .btn-secondary:active,
+    .btn-ghost:active,
+    button:active,
+    .menu-toggle:active,
+    .header-action:active,
+    .text-link:active,
+    .product-card:active,
+    .category-tile:active,
+    .category-card:active,
+    .service-card:active,
+    .contact-card:active {
+        transform: none;
+    }
+
+    .carousel-arrow:active {
+        transform: translateY(-50%);
+    }
+}
