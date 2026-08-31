@@ -133,6 +133,61 @@ jobs:
           print(f'Checked {checked} migration(s): no destructive SQL detected.')
           PY
 
+      - name: Guard migration numbering and order
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          migration_dir = Path('migrations')
+          if not migration_dir.exists():
+              print('No migrations directory; nothing to sequence.')
+              raise SystemExit(0)
+
+          migrations = sorted(migration_dir.glob('*.sql'))
+          pattern = re.compile(r'^(\d{3})_[a-z0-9][a-z0-9_]*\.sql$')
+          failures = []
+          numbers = []
+
+          for path in migrations:
+              match = pattern.fullmatch(path.name)
+              if not match:
+                  failures.append(
+                      f'{path}: filename must match NNN_lowercase_name.sql'
+                  )
+                  continue
+              numbers.append((int(match.group(1)), path.name))
+
+          seen = {}
+          for number, name in numbers:
+              if number in seen:
+                  failures.append(
+                      f'duplicate migration number {number:03d}: {seen[number]} and {name}'
+                  )
+              else:
+                  seen[number] = name
+
+          ordered = sorted(seen)
+          if ordered:
+              expected = list(range(1, max(ordered) + 1))
+              if ordered != expected:
+                  missing = sorted(set(expected) - set(ordered))
+                  failures.append(
+                      'migration sequence has gaps: ' + ', '.join(f'{n:03d}' for n in missing)
+                  )
+
+          if failures:
+              print('ERROR: migration sequence contract failed:', file=sys.stderr)
+              for failure in failures:
+                  print(f'  - {failure}', file=sys.stderr)
+              raise SystemExit(1)
+
+          print(f'Migration sequence is valid: {len(migrations)} file(s), contiguous and unique.')
+          PY
+
       - name: Run non-production staging preflight
         env:
           APP_ENV: staging
