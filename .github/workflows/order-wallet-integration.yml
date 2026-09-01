@@ -4,14 +4,21 @@ on:
   push:
     branches: [chatgpt/store-build]
     paths:
+      - 'service.php'
+      - 'order_create.php'
       - 'lib/wallet.php'
       - 'lib/checkout.php'
+      - 'lib/checkout_intent.php'
       - 'migrations/005_platform_accounts.sql'
       - 'migrations/009_orders.sql'
       - 'migrations/010_wallet_payments.sql'
       - 'migrations/019_checkout_idempotency.sql'
       - 'tests/order_wallet_flow.php'
       - 'tests/atomic_checkout_flow.php'
+      - 'tests/checkout_intent_flow.php'
+      - 'tests/checkout_intent_wiring.php'
+      - 'tests/checkout_http_probe.php'
+      - 'tests/checkout_http_flow.sh'
       - '.github/workflows/order-wallet-integration.yml'
   workflow_dispatch:
 
@@ -47,6 +54,8 @@ jobs:
       DB_NAME: elawaady_store
       DB_USER: root
       DB_PASS: root
+      CHECKOUT_HTTP_USER_ID: 90001
+      CHECKOUT_HTTP_SERVICE_ID: 9001
 
     steps:
       - uses: actions/checkout@v4
@@ -68,12 +77,25 @@ jobs:
             mysql -h127.0.0.1 -uroot -proot elawaady_store < "$migration"
           done
 
-      - name: Lint transactional PHP services and tests
+      - name: Lint checkout entrypoints, services and tests
         run: |
+          php -l service.php
+          php -l order_create.php
           php -l lib/wallet.php
           php -l lib/checkout.php
+          php -l lib/checkout_intent.php
           php -l tests/order_wallet_flow.php
           php -l tests/atomic_checkout_flow.php
+          php -l tests/checkout_intent_flow.php
+          php -l tests/checkout_intent_wiring.php
+          php -l tests/checkout_http_probe.php
+          bash -n tests/checkout_http_flow.sh
+
+      - name: Run checkout intent lifecycle
+        run: php tests/checkout_intent_flow.php
+
+      - name: Verify checkout intent browser wiring
+        run: php tests/checkout_intent_wiring.php
 
       - name: Run order and wallet ledger flow
         run: php tests/order_wallet_flow.php
@@ -81,13 +103,46 @@ jobs:
       - name: Run atomic checkout commit, retry and rollback flow
         run: php tests/atomic_checkout_flow.php
 
+      - name: Seed isolated HTTP retry account
+        run: |
+          set -euo pipefail
+          mysql -h127.0.0.1 -uroot -proot elawaady_store <<'SQL'
+          INSERT INTO platform_users
+            (id, account_type, name, email, phone, password_hash, status)
+          VALUES
+            (90001, 'user', 'HTTP Retry Test', 'http-retry@exd.test', '01000000000', 'not-used-in-ci', 'active');
+          INSERT INTO wallets (user_id, balance, currency)
+          VALUES (90001, 125.00, 'EGP');
+          SQL
+
+      - name: Run HTTP double-submit checkout flow
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:8081 -t . >/tmp/exd-checkout-http.log 2>&1 &
+          PHP_PID=$!
+          trap 'kill "$PHP_PID" 2>/dev/null || true; cat /tmp/exd-checkout-http.log || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/tests/checkout_http_probe.php >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          BASE=http://127.0.0.1:8081/tests/checkout_http_probe.php bash tests/checkout_http_flow.sh
+
       - name: Production isolation assertion
         run: |
           if grep -R -n --exclude-dir=.git -E 'https?://(www\.)?elawaady\.com' \
+            service.php \
+            order_create.php \
             lib/checkout.php \
+            lib/checkout_intent.php \
             migrations/019_checkout_idempotency.sql \
             tests/order_wallet_flow.php \
             tests/atomic_checkout_flow.php \
+            tests/checkout_intent_flow.php \
+            tests/checkout_intent_wiring.php \
+            tests/checkout_http_probe.php \
+            tests/checkout_http_flow.sh \
             .github/workflows/order-wallet-integration.yml; then
             echo 'Order/wallet integration must never call the live store.' >&2
             exit 1
