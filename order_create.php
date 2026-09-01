@@ -50,6 +50,15 @@ if ($serviceId === 0) {
     exit;
 }
 
+// A browser may attach a per-form retry key. It is never trusted for pricing or
+// identity; its only job is to let the atomic checkout recognize the same
+// signed-in purchase when a POST is retried. Invalid keys are ignored rather
+// than allowed to influence the order.
+$idempotencyKey = trim((string) ($_POST['checkout_intent'] ?? ''));
+if ($idempotencyKey !== '' && !preg_match('/^[A-Za-z0-9._:-]{16,64}$/', $idempotencyKey)) {
+    order_fail($serviceId, 'تعذّر التحقق من محاولة الشراء. أعد تحميل الصفحة وحاول مرة أخرى.');
+}
+
 // The same rule as the service page: no supplier column is selected, so the
 // order confirmation cannot reveal who fulfils it.
 $service = fetch_one($conn, "
@@ -154,42 +163,56 @@ function order_whatsapp_message(array $service, string $code, int $quantity, arr
     return implode("\n", $lines);
 }
 
-// A signed-in customer with the balance pays now, atomically.
-$paidFromWallet = false;
-$orderCode      = '';
-$orderId        = 0;
+// A signed-in active customer with wallet payment enabled always enters the
+// atomic checkout first. Do not pre-check the cached balance here: on a retry,
+// the first request may already have debited it. checkout_with_wallet() checks
+// idempotency before checking the remaining balance, so the retry can return the
+// original paid order instead of accidentally creating a second unpaid order.
+$paidFromWallet   = false;
+$checkoutReplayed = false;
+$orderCode        = '';
+$orderId          = 0;
 
 if ($userId > 0
     && $user['status'] === 'active'
     && (int) $service['allow_wallet_payment'] === 1
     && $quote['total'] > 0) {
-
-    $wallet = fetch_one($conn, 'SELECT balance, is_frozen FROM wallets WHERE user_id = ?', 'i', $userId);
-
-    if ($wallet !== null
-        && (int) $wallet['is_frozen'] === 0
-        && (float) $wallet['balance'] >= $quote['total']) {
-        try {
-            $result = checkout_with_wallet([
-                'user_id'        => $userId,
-                'service_id'     => $serviceId,
-                'service_name'   => (string) $service['name'],
-                'quantity'       => $quantity,
-                'unit_price'     => $quote['unit_price'],
-                'options_total'  => $quote['options_total'],
-                'mediation_fee'  => $quote['mediation_fee'],
-                'currency'       => strtoupper($quote['currency'] === 'ج.م' ? 'EGP' : $quote['currency']),
-                'target_url'     => $targetUrl,
-                'customer_notes' => $notes,
-            ]);
-            $paidFromWallet = true;
-            $orderCode      = (string) $result['order_code'];
-            $orderId        = (int) $result['order_id'];
-        } catch (Throwable $e) {
-            // An insufficient balance or a frozen wallet is not an error page;
-            // the order simply falls through to the awaiting-payment path.
-            error_log('[EXD checkout] ' . $e->getMessage());
+    try {
+        $result = checkout_with_wallet([
+            'user_id'         => $userId,
+            'service_id'      => $serviceId,
+            'service_name'    => (string) $service['name'],
+            'quantity'        => $quantity,
+            'unit_price'      => $quote['unit_price'],
+            'options_total'   => $quote['options_total'],
+            'mediation_fee'   => $quote['mediation_fee'],
+            'currency'        => strtoupper($quote['currency'] === 'ج.م' ? 'EGP' : $quote['currency']),
+            'target_url'      => $targetUrl,
+            'customer_notes'  => $notes,
+            'idempotency_key' => $idempotencyKey,
+        ]);
+        $paidFromWallet   = true;
+        $checkoutReplayed = (bool) ($result['replayed'] ?? false);
+        $orderCode        = (string) $result['order_code'];
+        $orderId          = (int) $result['order_id'];
+    } catch (RuntimeException $e) {
+        // Only ordinary wallet-unavailable states may continue as an unpaid
+        // order. Idempotency conflicts and transactional failures must stop;
+        // falling through would turn a failed retry into a duplicate order.
+        $fallbackErrors = [
+            'الرصيد غير كافٍ.',
+            'المحفظة موقوفة.',
+            'عملة المحفظة لا تطابق عملة الطلب.',
+        ];
+        if (in_array($e->getMessage(), $fallbackErrors, true)) {
+            error_log('[EXD checkout fallback] ' . $e->getMessage());
+        } else {
+            error_log('[EXD checkout blocked] ' . $e->getMessage());
+            order_fail($serviceId, 'تعذّر إتمام عملية الشراء بأمان. أعد تحميل الصفحة وحاول مرة أخرى.');
         }
+    } catch (Throwable $e) {
+        error_log('[EXD checkout failure] ' . $e->getMessage());
+        order_fail($serviceId, 'تعذّر إتمام عملية الشراء بأمان. أعد تحميل الصفحة وحاول مرة أخرى.');
     }
 }
 
@@ -262,14 +285,19 @@ if (!$paidFromWallet) {
     }
 }
 
-if ($userId > 0) {
-    notify_user($userId, 'تم استلام طلبك', $orderCode . ' — ' . (string) $service['name'],
-        'success', 'order-track.php?code=' . urlencode($orderCode));
-}
+// A replay is the same completed action, not a new business event. Avoid
+// duplicate customer/staff notifications while still redirecting to the same
+// confirmation page and order code.
+if (!$checkoutReplayed) {
+    if ($userId > 0) {
+        notify_user($userId, 'تم استلام طلبك', $orderCode . ' — ' . (string) $service['name'],
+            'success', 'order-track.php?code=' . urlencode($orderCode));
+    }
 
-// Staff see a new order without having to refresh a list.
-notify_staff('orders.view', 'طلب جديد', $orderCode . ' — ' . (string) $service['name'],
-    'info', 'order-view.php?id=' . $orderId);
+    // Staff see a new order without having to refresh a list.
+    notify_staff('orders.view', 'طلب جديد', $orderCode . ' — ' . (string) $service['name'],
+        'info', 'order-view.php?id=' . $orderId);
+}
 
 // A mediated deal continues on the mediation page; a support-routed service
 // hands the customer to the channel it is configured for; everything else
