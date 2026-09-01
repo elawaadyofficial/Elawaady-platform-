@@ -10,6 +10,7 @@ on:
       - Backend production safety gate
       - Auth Integration
       - Order Wallet Integration
+      - Platform Integration
     types: [completed]
 
 permissions:
@@ -25,6 +26,16 @@ jobs:
     if: github.event.workflow_run.head_branch == 'chatgpt/store-build'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out immutable staging candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Validate machine-readable staging contract
+        run: |
+          php -l tests/staging_manifest_contract.php
+          php tests/staging_manifest_contract.php
+
       - name: Verify staging prerequisite workflows
         uses: actions/github-script@v7
         with:
@@ -37,6 +48,7 @@ jobs:
               'Backend production safety gate',
               'Auth Integration',
               'Order Wallet Integration',
+              'Platform Integration',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;

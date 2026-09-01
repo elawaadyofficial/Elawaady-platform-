@@ -1,0 +1,139 @@
+name: Release Readiness Signal
+
+on:
+  workflow_run:
+    workflows:
+      - Release Evidence Verify
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: release-readiness-signal-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  emit-readiness-signal:
+    if: >-
+      github.event.workflow_run.head_branch == 'chatgpt/store-build' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Validate release readiness signal contract
+        run: |
+          php -l tests/release_readiness_signal_contract.php
+          php tests/release_readiness_signal_contract.php
+
+      - name: Build final validation-only readiness signal
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERIFIER_RUN_ID: ${{ github.event.workflow_run.id }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          download_artifact_by_id() {
+            local artifact_id="$1"
+            local output_dir="$2"
+            local zip_path="$3"
+            gh api "repos/$REPO/actions/artifacts/$artifact_id/zip" > "$zip_path"
+            mkdir -p "$output_dir"
+            unzip -q "$zip_path" -d "$output_dir"
+          }
+
+          VERIFIER_META="$(gh api "repos/$REPO/actions/runs/$VERIFIER_RUN_ID/artifacts")"
+          VERIFIER_ARTIFACT_ID="$(jq -r --arg name "release-evidence-verification-$CANDIDATE_SHA" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$VERIFIER_META")"
+          if [ -z "$VERIFIER_ARTIFACT_ID" ]; then
+            echo "Expected exactly one current verifier artifact"
+            exit 1
+          fi
+
+          download_artifact_by_id "$VERIFIER_ARTIFACT_ID" verifier verifier.zip
+          VERIFICATION="verifier/release-evidence-verification.json"
+          test -f "$VERIFICATION"
+
+          jq -e --arg sha "$CANDIDATE_SHA" '
+            .schema_version == 1
+            and .candidate_sha == $sha
+            and .verifier_state == "pass"
+            and .release_branch == "chatgpt/store-build"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+          ' "$VERIFICATION" >/dev/null
+
+          CURRENT_TREE="$(git rev-parse 'HEAD^{tree}')"
+          test "$CURRENT_TREE" = "$(jq -r '.candidate_tree_sha' "$VERIFICATION")"
+
+          INDEX_ARTIFACT_ID="$(jq -r '.evidence_index_artifact_id' "$VERIFICATION")"
+          INDEX_RUN_ID="$(jq -r '.evidence_index_run_id' "$VERIFICATION")"
+          [[ "$INDEX_ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$INDEX_RUN_ID" =~ ^[0-9]+$ ]]
+
+          download_artifact_by_id "$INDEX_ARTIFACT_ID" index index.zip
+          INDEX="index/release-evidence-index.json"
+          test -f "$INDEX"
+          test "$(sha256sum "$INDEX" | awk '{print $1}')" = "$(jq -r '.evidence_index_sha256' "$VERIFICATION")"
+          test "$(jq -r '.candidate_sha' "$INDEX")" = "$CANDIDATE_SHA"
+          test "$(jq -r '.candidate_tree_sha' "$INDEX")" = "$CURRENT_TREE"
+
+          PREVIOUS_KNOWN_GOOD_SHA="$(jq -r '.previous_known_good_sha' "$INDEX")"
+          [[ "$PREVIOUS_KNOWN_GOOD_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          jq -n \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg candidate_tree_sha "$CURRENT_TREE" \
+            --arg previous_known_good_sha "$PREVIOUS_KNOWN_GOOD_SHA" \
+            --arg migration_checksum "$(jq -r '.migration_checksum_sha256' "$VERIFICATION")" \
+            --arg verifier_sha256 "$(sha256sum "$VERIFICATION" | awk '{print $1}')" \
+            --argjson verifier_run_id "$VERIFIER_RUN_ID" \
+            --argjson verifier_artifact_id "$VERIFIER_ARTIFACT_ID" \
+            --argjson evidence_index_run_id "$INDEX_RUN_ID" \
+            --argjson evidence_index_artifact_id "$INDEX_ARTIFACT_ID" \
+            '{
+              schema_version: 1,
+              candidate_sha: $candidate_sha,
+              candidate_tree_sha: $candidate_tree_sha,
+              previous_known_good_sha: $previous_known_good_sha,
+              migration_checksum_sha256: $migration_checksum,
+              verifier_sha256: $verifier_sha256,
+              verifier_run_id: $verifier_run_id,
+              verifier_artifact_id: $verifier_artifact_id,
+              evidence_index_run_id: $evidence_index_run_id,
+              evidence_index_artifact_id: $evidence_index_artifact_id,
+              readiness_state: "staging_handoff_ready",
+              release_branch: "chatgpt/store-build",
+              deployment_mode: "validation_only",
+              production_deploy_allowed: false
+            }' > release-readiness-signal.json
+
+          jq -e --arg sha "$CANDIDATE_SHA" --arg rollback "$PREVIOUS_KNOWN_GOOD_SHA" '
+            .schema_version == 1
+            and .candidate_sha == $sha
+            and .previous_known_good_sha == $rollback
+            and .readiness_state == "staging_handoff_ready"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+          ' release-readiness-signal.json >/dev/null
+
+      - name: Upload final readiness signal
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-signal-${{ github.event.workflow_run.head_sha }}
+          path: release-readiness-signal.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Readiness summary
+        run: |
+          echo "Independent evidence verification is PASS and the candidate has a validation-only staging handoff signal."
+          echo "The signal records the candidate SHA, rollback SHA, verifier run/artifact IDs, tree hash, and migration checksum."
+          echo "No production deployment capability is present in this workflow."

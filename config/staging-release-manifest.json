@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_branch": "chatgpt/store-build",
+  "deployment_mode": "validation_only",
+  "production_deploy_allowed": false,
+  "production_host": "elawaady.com",
+  "required_workflows": [
+    "Storefront Safety",
+    "Homepage Contract",
+    "Migration Smoke",
+    "Catalog Visual Contract",
+    "Backend production safety gate",
+    "Auth Integration",
+    "Order Wallet Integration",
+    "Platform Integration"
+  ],
+  "handoff_requirements": {
+    "record_candidate_sha": true,
+    "record_previous_known_good_sha": true,
+    "database_backup_required": true,
+    "migration_state_required": true,
+    "rollback_plan_required": true
+  },
+  "safety_boundaries": [
+    "No workflow in this manifest may deploy to production.",
+    "No validation job may connect to elawaady.com or a production database.",
+    "Staging handoff must use an explicit immutable candidate commit SHA.",
+    "Database migrations must be reviewed and backed up before any staging application."
+  ]
+}

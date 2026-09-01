@@ -7,6 +7,7 @@ on:
     types: [completed]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -59,6 +60,11 @@ jobs:
           grep -q 'Only then schedule production release separately' DEPLOYMENT_CHECKLIST.md
           grep -q 'No force-push, reset, or direct production deployment from `chatgpt/store-build`' DEPLOYMENT_CHECKLIST.md
 
+      - name: Validate release handoff audit contract
+        run: |
+          php -l tests/release_handoff_contract.php
+          php tests/release_handoff_contract.php
+
       - name: Guard against committed environment files and database dumps
         run: |
           forbidden="$(git ls-files | grep -E '(^|/)(\.env($|\.)|.*\.(sql\.gz|dump|bak)$)' || true)"
@@ -68,9 +74,132 @@ jobs:
             exit 1
           fi
 
+      - name: Generate immutable release handoff record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+          STAGING_READINESS_RUN_ID: ${{ github.event.workflow_run.id }}
+          REQUIRED_WORKFLOWS_JSON: '["Storefront Safety","Homepage Contract","Migration Smoke","Catalog Visual Contract","Backend production safety gate","Auth Integration","Order Wallet Integration","Platform Integration"]'
+        run: |
+          set -euo pipefail
+
+          RUNS_JSON="$(gh api --paginate "repos/$REPO/actions/runs?branch=chatgpt%2Fstore-build&status=completed&per_page=100" --slurp | jq '{workflow_runs: map(.workflow_runs[]) }')"
+          RELEASE_RUNS_JSON="$(gh api "repos/$REPO/actions/workflows/release-candidate.yml/runs?branch=chatgpt%2Fstore-build&status=success&per_page=20")"
+          PREVIOUS_KNOWN_GOOD_SHA="$(
+            jq -r --arg candidate "$CANDIDATE_SHA" \
+              '[.workflow_runs[] | select(.head_sha != $candidate) | .head_sha][0] // empty' \
+              <<<"$RELEASE_RUNS_JSON"
+          )"
+
+          if [ -z "$PREVIOUS_KNOWN_GOOD_SHA" ]; then
+            PREVIOUS_KNOWN_GOOD_SHA="none-recorded"
+          fi
+
+          ACCEPTED_WORKFLOW_RUNS='{}'
+          while IFS= read -r WORKFLOW_NAME; do
+            MATCH=''
+            while IFS=$'\t' read -r RUN_ID RUN_SHA RUN_CONCLUSION RUN_URL; do
+              if [ "$RUN_SHA" = "$CANDIDATE_SHA" ]; then
+                MATCH="$(jq -n --argjson id "$RUN_ID" --arg sha "$RUN_SHA" --arg conclusion "$RUN_CONCLUSION" --arg url "$RUN_URL" '{run_id:$id,head_sha:$sha,conclusion:$conclusion,url:$url}')"
+                break
+              fi
+
+              STATUS="$(gh api "repos/$REPO/compare/$RUN_SHA...$CANDIDATE_SHA" --jq '.status' 2>/dev/null || true)"
+              if [ "$STATUS" = "ahead" ] || [ "$STATUS" = "identical" ]; then
+                MATCH="$(jq -n --argjson id "$RUN_ID" --arg sha "$RUN_SHA" --arg conclusion "$RUN_CONCLUSION" --arg url "$RUN_URL" '{run_id:$id,head_sha:$sha,conclusion:$conclusion,url:$url}')"
+                break
+              fi
+            done < <(
+              jq -r --arg name "$WORKFLOW_NAME" \
+                '.workflow_runs | map(select(.name == $name)) | sort_by(.created_at) | reverse[] | [.id,.head_sha,(.conclusion // "unknown"),.html_url] | @tsv' \
+                <<<"$RUNS_JSON"
+            )
+
+            if [ -z "$MATCH" ]; then
+              echo "No completed applicable run found for required workflow: $WORKFLOW_NAME"
+              exit 1
+            fi
+
+            if [ "$(jq -r '.conclusion' <<<"$MATCH")" != "success" ]; then
+              echo "Latest applicable run for $WORKFLOW_NAME is not successful"
+              jq . <<<"$MATCH"
+              exit 1
+            fi
+
+            ACCEPTED_WORKFLOW_RUNS="$(jq --arg name "$WORKFLOW_NAME" --argjson run "$MATCH" '. + {($name): $run}' <<<"$ACCEPTED_WORKFLOW_RUNS")"
+          done < <(jq -r '.[]' <<<"$REQUIRED_WORKFLOWS_JSON")
+
+          ACCEPTED_COUNT="$(jq 'length' <<<"$ACCEPTED_WORKFLOW_RUNS")"
+          REQUIRED_COUNT="$(jq 'length' <<<"$REQUIRED_WORKFLOWS_JSON")"
+          if [ "$ACCEPTED_COUNT" -ne "$REQUIRED_COUNT" ]; then
+            echo "Accepted workflow run count mismatch: expected $REQUIRED_COUNT, got $ACCEPTED_COUNT"
+            exit 1
+          fi
+
+          mapfile -t MIGRATION_FILES < <(git ls-files 'migrations/*.sql' | sort)
+          if [ "${#MIGRATION_FILES[@]}" -eq 0 ]; then
+            echo "No tracked SQL migrations found"
+            exit 1
+          fi
+
+          MIGRATION_CHECKSUM="$(
+            printf '%s\0' "${MIGRATION_FILES[@]}" \
+              | xargs -0 sha256sum \
+              | sha256sum \
+              | awk '{print $1}'
+          )"
+
+          if [ -z "$MIGRATION_CHECKSUM" ]; then
+            echo "Unable to calculate migration checksum"
+            exit 1
+          fi
+
+          jq -n \
+            --arg schema_version "2" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg previous_known_good_sha "$PREVIOUS_KNOWN_GOOD_SHA" \
+            --arg staging_readiness_run_id "$STAGING_READINESS_RUN_ID" \
+            --arg migration_checksum "$MIGRATION_CHECKSUM" \
+            --arg release_branch "chatgpt/store-build" \
+            --argjson accepted_workflow_runs "$ACCEPTED_WORKFLOW_RUNS" \
+            '{
+              schema_version: ($schema_version | tonumber),
+              candidate_sha: $candidate_sha,
+              previous_known_good_sha: $previous_known_good_sha,
+              staging_readiness_run_id: ($staging_readiness_run_id | tonumber),
+              migration_checksum_sha256: $migration_checksum,
+              accepted_workflow_runs: $accepted_workflow_runs,
+              release_branch: $release_branch,
+              deployment_mode: "validation_only",
+              production_deploy_allowed: false
+            }' > release-candidate-handoff.json
+
+          jq -e \
+            --arg sha "$CANDIDATE_SHA" \
+            --argjson required "$REQUIRED_WORKFLOWS_JSON" \
+            '.candidate_sha == $sha
+              and .release_branch == "chatgpt/store-build"
+              and .deployment_mode == "validation_only"
+              and .production_deploy_allowed == false
+              and ((.accepted_workflow_runs | keys | sort) == ($required | sort))
+              and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))' \
+            release-candidate-handoff.json >/dev/null
+
+          cat release-candidate-handoff.json
+
+      - name: Upload release handoff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ github.event.workflow_run.head_sha }}
+          path: release-candidate-handoff.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Release candidate summary
         env:
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           echo "Release candidate validation passed for $CANDIDATE_SHA"
+          echo "An immutable handoff record with accepted CI run IDs was uploaded as a CI artifact."
           echo "This workflow validates readiness only. It does not deploy to staging or production."

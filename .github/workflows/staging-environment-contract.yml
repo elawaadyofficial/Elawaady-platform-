@@ -1,0 +1,35 @@
+name: Staging Environment Contract
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate staging environment contract
+        run: php tests/staging_environment_contract.php
+
+      - name: Probe staging fallback health behavior
+        run: python3 tests/staging_health_probe.py
+
+      - name: Confirm workflow remains validation-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/staging-environment-contract.yml
+          ! grep -Eiq 'elawaady\.com|ssh |scp |rsync |appleboy/|webfactory/ssh-agent|contents:[[:space:]]*write|deploy' "$workflow"
+          grep -F 'persist-credentials: false' "$workflow" >/dev/null
+          grep -F 'contents: read' "$workflow" >/dev/null
