@@ -36,6 +36,12 @@ csrf() {
 
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
+# The suite deliberately trips the throttle, so clear it first — otherwise a
+# second run of the suite is locked out by the first.
+if [ -f tools/reset_throttle.php ]; then
+  php tools/reset_throttle.php >/dev/null 2>&1 || true
+fi
+
 head1 'Registration'
 
 TOKEN="$(csrf "$JAR" "$BASE/register.php")"
