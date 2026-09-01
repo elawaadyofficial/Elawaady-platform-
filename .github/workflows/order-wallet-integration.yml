@@ -1,0 +1,92 @@
+name: Order Wallet Integration
+
+on:
+  push:
+    branches: [chatgpt/store-build]
+    paths:
+      - 'lib/wallet.php'
+      - 'lib/checkout.php'
+      - 'migrations/005_platform_accounts.sql'
+      - 'migrations/009_orders.sql'
+      - 'migrations/010_wallet_payments.sql'
+      - 'tests/order_wallet_flow.php'
+      - 'tests/atomic_checkout_flow.php'
+      - '.github/workflows/order-wallet-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: order-wallet-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  order-wallet-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: elawaady_store
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: development
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: elawaady_store
+      DB_USER: root
+      DB_PASS: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PHP database extension
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-mysql
+
+      - name: Prepare isolated order and wallet schema
+        run: |
+          set -euo pipefail
+          for migration in \
+            migrations/005_platform_accounts.sql \
+            migrations/009_orders.sql \
+            migrations/010_wallet_payments.sql
+          do
+            mysql -h127.0.0.1 -uroot -proot elawaady_store < "$migration"
+          done
+
+      - name: Lint transactional PHP services and tests
+        run: |
+          php -l lib/wallet.php
+          php -l lib/checkout.php
+          php -l tests/order_wallet_flow.php
+          php -l tests/atomic_checkout_flow.php
+
+      - name: Run order and wallet ledger flow
+        run: php tests/order_wallet_flow.php
+
+      - name: Run atomic checkout commit and rollback flow
+        run: php tests/atomic_checkout_flow.php
+
+      - name: Production isolation assertion
+        run: |
+          if grep -R -n --exclude-dir=.git -E 'https?://(www\.)?elawaady\.com' \
+            lib/checkout.php \
+            tests/order_wallet_flow.php \
+            tests/atomic_checkout_flow.php \
+            .github/workflows/order-wallet-integration.yml; then
+            echo 'Order/wallet integration must never call the live store.' >&2
+            exit 1
+          fi
+          echo 'Order/wallet integration is isolated from elawaady.com.'

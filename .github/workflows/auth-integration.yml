@@ -1,0 +1,114 @@
+name: Auth Integration
+
+on:
+  push:
+    branches: [chatgpt/store-build]
+    paths:
+      - 'login.php'
+      - 'logout.php'
+      - 'register.php'
+      - 'forgot-password.php'
+      - 'reset-password.php'
+      - 'account.php'
+      - 'supplier-dashboard.php'
+      - 'lib/auth.php'
+      - 'lib/wallet.php'
+      - 'db_connect.php'
+      - 'migrations/005_platform_accounts.sql'
+      - 'migrations/006_rbac.sql'
+      - 'migrations/007_suppliers.sql'
+      - 'migrations/009_orders.sql'
+      - 'migrations/010_wallet_payments.sql'
+      - 'tests/auth_flow.sh'
+      - '.github/workflows/auth-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: elawaady_store
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: development
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: elawaady_store
+      DB_USER: root
+      DB_PASS: root
+      BASE: http://127.0.0.1:8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PHP database extension
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-mysql
+
+      - name: Prepare isolated account schema
+        run: |
+          set -euo pipefail
+          for migration in \
+            migrations/005_platform_accounts.sql \
+            migrations/006_rbac.sql \
+            migrations/007_suppliers.sql \
+            migrations/009_orders.sql \
+            migrations/010_wallet_payments.sql
+          do
+            mysql -h127.0.0.1 -uroot -proot elawaady_store < "$migration"
+          done
+
+      - name: Start isolated PHP server
+        run: |
+          php -S 127.0.0.1:8080 -t . > /tmp/exd-auth-http.log 2>&1 &
+          echo $! > /tmp/exd-auth-http.pid
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8080/login.php >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/exd-auth-http.log
+          exit 1
+
+      - name: Run real HTTP authentication flow
+        run: bash tests/auth_flow.sh
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/exd-auth-http.log || true
+
+      - name: Stop isolated PHP server
+        if: always()
+        run: |
+          if [ -f /tmp/exd-auth-http.pid ]; then
+            kill "$(cat /tmp/exd-auth-http.pid)" 2>/dev/null || true
+          fi
+
+      - name: Production isolation assertion
+        run: |
+          if grep -R -n --exclude-dir=.git -E 'https?://(www\.)?elawaady\.com' tests/auth_flow.sh .github/workflows/auth-integration.yml; then
+            echo 'Auth integration test must never call the live store.' >&2
+            exit 1
+          fi
+          echo 'Auth integration is isolated from elawaady.com.'
