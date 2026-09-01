@@ -25,7 +25,7 @@ wiring_expect($service, 'value="<?= e($checkoutIntent) ?>"', 'checkout intent mu
 
 wiring_expect($order, 'lib/checkout_intent.php', 'order handler must load checkout intent helper');
 wiring_expect($order, 'checkout_intent_verify($idempotencyKey, $serviceId)', 'order handler must verify session and service binding');
-wiring_expect($order, "'idempotency_key' => $idempotencyKey", 'verified intent must become the wallet checkout idempotency key');
+wiring_expect($order, '\'idempotency_key\' => $idempotencyKey', 'verified intent must become the wallet checkout idempotency key');
 
 $verifyPos = strpos($order, 'checkout_intent_verify($idempotencyKey, $serviceId)');
 $quotePos  = strpos($order, 'service_quote($conn, $service, $quantity');
