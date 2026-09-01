@@ -11,6 +11,7 @@ on:
       - Auth Integration
       - Order Wallet Integration
       - Platform Integration
+      - Staging Environment Contract
     types: [completed]
 
 permissions:
@@ -30,6 +31,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
 
       - name: Validate machine-readable staging contract
         run: |
@@ -49,6 +51,7 @@ jobs:
               'Auth Integration',
               'Order Wallet Integration',
               'Platform Integration',
+              'Staging Environment Contract',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;

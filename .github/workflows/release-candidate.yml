@@ -80,7 +80,7 @@ jobs:
           REPO: ${{ github.repository }}
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
           STAGING_READINESS_RUN_ID: ${{ github.event.workflow_run.id }}
-          REQUIRED_WORKFLOWS_JSON: '["Storefront Safety","Homepage Contract","Migration Smoke","Catalog Visual Contract","Backend production safety gate","Auth Integration","Order Wallet Integration","Platform Integration"]'
+          REQUIRED_WORKFLOWS_JSON: '["Storefront Safety","Homepage Contract","Migration Smoke","Catalog Visual Contract","Backend production safety gate","Auth Integration","Order Wallet Integration","Platform Integration","Staging Environment Contract"]'
         run: |
           set -euo pipefail
 

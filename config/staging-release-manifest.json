@@ -12,7 +12,8 @@
     "Backend production safety gate",
     "Auth Integration",
     "Order Wallet Integration",
-    "Platform Integration"
+    "Platform Integration",
+    "Staging Environment Contract"
   ],
   "handoff_requirements": {
     "record_candidate_sha": true,
