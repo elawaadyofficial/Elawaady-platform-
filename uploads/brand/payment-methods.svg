@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 130" width="960" height="130">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0d0d0d"/>
+      <stop offset="100%" stop-color="#111116"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="130" rx="16" fill="url(#bg)"/>
+  <rect x="0.75" y="0.75" width="958.5" height="128.5" rx="15.5" fill="none" stroke="rgba(255,122,0,0.28)" stroke-width="1.5"/>
+
+  <!-- Visa -->
+  <rect x="30" y="28" width="108" height="74" rx="12" fill="#0d1b6e"/>
+  <text x="84" y="78" font-family="Arial Black, Arial, sans-serif" font-size="28" font-weight="900" fill="#fff" text-anchor="middle" letter-spacing="-1">VISA</text>
+
+  <!-- Mastercard -->
+  <rect x="154" y="28" width="108" height="74" rx="12" fill="#1a1a2e" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <circle cx="218" cy="65" r="23" fill="#eb001b"/>
+  <circle cx="242" cy="65" r="23" fill="#f79e1b"/>
+  <ellipse cx="230" cy="65" rx="8" ry="23" fill="#ff5f00"/>
+
+  <!-- Mada -->
+  <rect x="278" y="28" width="108" height="74" rx="12" fill="#1e1e2e" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="332" y="60" font-family="Arial, sans-serif" font-size="11" fill="rgba(255,255,255,0.45)" text-anchor="middle">شبكة المدفوعات</text>
+  <text x="332" y="84" font-family="Arial Black, Arial, sans-serif" font-size="24" font-weight="900" fill="#25d366" text-anchor="middle" letter-spacing="1">mada</text>
+
+  <!-- Apple Pay -->
+  <rect x="402" y="28" width="118" height="74" rx="12" fill="#1a1a1a" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+  <text x="461" y="60" font-family="Arial, sans-serif" font-size="20" fill="#fff" text-anchor="middle"></text>
+  <text x="461" y="84" font-family="-apple-system, Arial, sans-serif" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">Apple Pay</text>
+
+  <!-- Google Pay -->
+  <rect x="536" y="28" width="118" height="74" rx="12" fill="#fff" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <text x="595" y="59" font-family="Arial, sans-serif" font-size="10" fill="#5f6368" text-anchor="middle" font-weight="500">Pay with</text>
+  <text x="576" y="82" font-family="Arial Black, Arial" font-size="14" font-weight="900" fill="#4285f4" text-anchor="middle">G</text>
+  <text x="590" y="82" font-family="Arial Black, Arial" font-size="14" font-weight="900" fill="#34a853" text-anchor="middle">o</text>
+  <text x="603" y="82" font-family="Arial Black, Arial" font-size="14" font-weight="900" fill="#fbbc04" text-anchor="middle">o</text>
+  <text x="616" y="82" font-family="Arial Black, Arial" font-size="14" font-weight="900" fill="#ea4335" text-anchor="middle">g</text>
+  <text x="628" y="82" font-family="Arial Black, Arial" font-size="14" font-weight="900" fill="#4285f4" text-anchor="middle">le</text>
+
+  <!-- PayPal -->
+  <rect x="670" y="28" width="108" height="74" rx="12" fill="#003087"/>
+  <text x="724" y="71" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="900" fill="#009cde" text-anchor="middle">Pay</text>
+  <text x="738" y="71" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="900" fill="#fff" text-anchor="start">Pal</text>
+
+  <!-- Bank Transfer -->
+  <rect x="794" y="28" width="136" height="74" rx="12" fill="#1a0d00" stroke="rgba(255,122,0,0.30)" stroke-width="1"/>
+  <text x="862" y="60" font-family="Arial, sans-serif" font-size="22" fill="#ff9500" text-anchor="middle">🏦</text>
+  <text x="862" y="83" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ff9500" text-anchor="middle">تحويل بنكي</text>
+
+  <!-- Bottom label -->
+  <text x="480" y="118" font-family="Arial, sans-serif" font-size="10" fill="rgba(255,255,255,0.28)" text-anchor="middle">Available Payment Methods — ادفع بالطريقة اللي تناسبك</text>
+</svg>

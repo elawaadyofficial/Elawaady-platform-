@@ -29,6 +29,7 @@ $exd_account = auth_user();
     <link rel="stylesheet" href="exd-layouts.css">
     <link rel="stylesheet" href="exd-banner.css">
     <link rel="stylesheet" href="exd-account.css">
+    <link rel="stylesheet" href="exd-commerce.css">
     <link rel="stylesheet" href="motion.css">
     <link rel="stylesheet" href="exd-interaction.css">
 </head>
