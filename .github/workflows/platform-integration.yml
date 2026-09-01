@@ -1,0 +1,117 @@
+name: Platform Integration
+
+# The whole platform, exercised the way a person uses it: real HTTP, real
+# cookies, real MariaDB. A syntax check cannot find a wrong bind_param type
+# string, a missing CSRF guard, or money moving twice.
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Authentication, dashboard, orders, suppliers and mediation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root-ci-only
+          MARIADB_DATABASE: exd_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      APP_ENV: development
+      APP_URL: http://127.0.0.1:8080
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: exd_ci
+      DB_USER: root
+      DB_PASS: root-ci-only
+      APP_ENCRYPTION_KEY: ci-only-not-a-real-secret-0000000000
+      ADMIN_PASS: CiOnlyPassword2026
+      SUPPORT_PASS: CiOnlySupport2026x
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, mbstring, openssl, curl, fileinfo
+          coverage: none
+
+      - name: Static check — every bind_param binds what it declares
+        run: php tests/bind_param_check.php
+
+      - name: Lint every PHP file
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" > /dev/null || { echo "Lint failed: $file"; failed=1; }
+          done < <(find . -name '*.php' -not -path './.git/*' -not -path './backend/*' -print0)
+          exit $failed
+
+      - name: Install from an empty database
+        run: |
+          printf '%s\n%s\n' "$ADMIN_PASS" "$ADMIN_PASS" | php tools/install.php --admin=admin
+
+      - name: Add a limited role to prove permissions are enforced
+        run: |
+          printf '%s\n%s\n' "$SUPPORT_PASS" "$SUPPORT_PASS" \
+            | php tools/create_admin.php --username=support --role=support_agent
+
+      - name: Serve the store
+        run: |
+          php -S 127.0.0.1:8080 -t . tools/dev-router.php > /tmp/server.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:8080/index.php; then exit 0; fi
+            sleep 1
+          done
+          echo 'The server did not come up.' >&2
+          cat /tmp/server.log >&2
+          exit 1
+
+      - name: Authentication
+        run: bash tests/auth_flow.sh
+
+      - name: Dashboard and permissions
+        run: bash tests/admin_smoke.sh
+
+      - name: Orders, pricing and the wallet ledger
+        run: bash tests/order_flow.sh
+
+      - name: Supplier lifecycle and mediation
+        run: bash tests/supplier_mediation_flow.sh
+
+      - name: No PHP warning reached any page
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -qiE 'Fatal error|Parse error|Uncaught' /tmp/server.log; then
+            echo 'The server log contains a PHP error:' >&2
+            grep -iE 'Fatal error|Parse error|Uncaught' /tmp/server.log | head -20 >&2
+            exit 1
+          fi
+          echo 'No PHP error in the server log.'
