@@ -7,6 +7,7 @@ on:
     types: [completed]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -68,9 +69,76 @@ jobs:
             exit 1
           fi
 
+      - name: Generate immutable release handoff record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+          STAGING_READINESS_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+
+          PREVIOUS_KNOWN_GOOD_SHA="$(
+            gh api "repos/$REPO/actions/workflows/release-candidate.yml/runs?branch=chatgpt%2Fstore-build&status=success&per_page=20" \
+              --jq '.workflow_runs[] | select(.head_sha != env.CANDIDATE_SHA) | .head_sha' \
+              | head -n 1
+          )"
+
+          if [ -z "$PREVIOUS_KNOWN_GOOD_SHA" ]; then
+            PREVIOUS_KNOWN_GOOD_SHA="none-recorded"
+          fi
+
+          MIGRATION_CHECKSUM="$(
+            git ls-files \
+              | grep -E '(^|/)(migrations?|database/migrations?)/.*\.sql$' \
+              | sort \
+              | while read -r file; do sha256sum "$file"; done \
+              | sha256sum \
+              | awk '{print $1}'
+          )"
+
+          if [ -z "$MIGRATION_CHECKSUM" ]; then
+            echo "Unable to calculate migration checksum"
+            exit 1
+          fi
+
+          jq -n \
+            --arg schema_version "1" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg previous_known_good_sha "$PREVIOUS_KNOWN_GOOD_SHA" \
+            --arg staging_readiness_run_id "$STAGING_READINESS_RUN_ID" \
+            --arg migration_checksum "$MIGRATION_CHECKSUM" \
+            --arg release_branch "chatgpt/store-build" \
+            '{
+              schema_version: ($schema_version | tonumber),
+              candidate_sha: $candidate_sha,
+              previous_known_good_sha: $previous_known_good_sha,
+              staging_readiness_run_id: ($staging_readiness_run_id | tonumber),
+              migration_checksum_sha256: $migration_checksum,
+              release_branch: $release_branch,
+              deployment_mode: "validation_only",
+              production_deploy_allowed: false
+            }' > release-candidate-handoff.json
+
+          jq -e \
+            --arg sha "$CANDIDATE_SHA" \
+            '.candidate_sha == $sha and .release_branch == "chatgpt/store-build" and .deployment_mode == "validation_only" and .production_deploy_allowed == false' \
+            release-candidate-handoff.json >/dev/null
+
+          cat release-candidate-handoff.json
+
+      - name: Upload release handoff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ github.event.workflow_run.head_sha }}
+          path: release-candidate-handoff.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Release candidate summary
         env:
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           echo "Release candidate validation passed for $CANDIDATE_SHA"
+          echo "An immutable handoff record was uploaded as a CI artifact."
           echo "This workflow validates readiness only. It does not deploy to staging or production."
