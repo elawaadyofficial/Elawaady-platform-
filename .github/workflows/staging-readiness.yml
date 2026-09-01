@@ -10,6 +10,7 @@ on:
       - Backend production safety gate
       - Auth Integration
       - Order Wallet Integration
+      - Platform Integration
     types: [completed]
 
 permissions:
@@ -37,6 +38,7 @@ jobs:
               'Backend production safety gate',
               'Auth Integration',
               'Order Wallet Integration',
+              'Platform Integration',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;
