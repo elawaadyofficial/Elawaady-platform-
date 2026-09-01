@@ -80,9 +80,14 @@ jobs:
           REPO: ${{ github.repository }}
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
           STAGING_READINESS_RUN_ID: ${{ github.event.workflow_run.id }}
-          REQUIRED_WORKFLOWS_JSON: '["Storefront Safety","Homepage Contract","Migration Smoke","Catalog Visual Contract","Backend production safety gate","Auth Integration","Order Wallet Integration","Platform Integration","Staging Environment Contract"]'
         run: |
           set -euo pipefail
+
+          REQUIRED_WORKFLOWS_JSON="$(jq -c '.required_workflows' config/staging-release-manifest.json)"
+          if [ "$(jq 'length' <<<"$REQUIRED_WORKFLOWS_JSON")" -lt 1 ]; then
+            echo "Staging release manifest does not define required workflows"
+            exit 1
+          fi
 
           RUNS_JSON="$(gh api --paginate "repos/$REPO/actions/runs?branch=chatgpt%2Fstore-build&status=completed&per_page=100" --slurp | jq '{workflow_runs: map(.workflow_runs[]) }')"
           RELEASE_RUNS_JSON="$(gh api "repos/$REPO/actions/workflows/release-candidate.yml/runs?branch=chatgpt%2Fstore-build&status=success&per_page=20")"

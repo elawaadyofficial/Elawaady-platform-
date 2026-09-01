@@ -13,7 +13,8 @@
     "Auth Integration",
     "Order Wallet Integration",
     "Platform Integration",
-    "Staging Environment Contract"
+    "Staging Environment Contract",
+    "Staging Configuration Contract"
   ],
   "handoff_requirements": {
     "record_candidate_sha": true,

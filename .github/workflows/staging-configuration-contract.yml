@@ -1,0 +1,37 @@
+name: Staging Configuration Contract
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+    paths:
+      - '.env.example'
+      - 'backend/.env.example'
+      - 'backend/production_check.py'
+      - 'db_connect.php'
+      - 'config/staging-configuration-contract.json'
+      - 'tests/staging_configuration_contract.php'
+      - '.github/workflows/staging-configuration-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-staging-configuration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate staging configuration names and placeholders
+        run: |
+          php -l tests/staging_configuration_contract.php
+          php tests/staging_configuration_contract.php
+
+      - name: Validation-only summary
+        run: |
+          echo "Staging configuration contract passed."
+          echo "No secret values were read and no deployment or production connection was attempted."

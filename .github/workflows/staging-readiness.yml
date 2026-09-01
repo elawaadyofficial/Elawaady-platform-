@@ -12,6 +12,7 @@ on:
       - Order Wallet Integration
       - Platform Integration
       - Staging Environment Contract
+      - Staging Configuration Contract
     types: [completed]
 
 permissions:
@@ -52,6 +53,7 @@ jobs:
               'Order Wallet Integration',
               'Platform Integration',
               'Staging Environment Contract',
+              'Staging Configuration Contract',
             ];
             const trigger = context.payload.workflow_run;
             const sha = trigger.head_sha;

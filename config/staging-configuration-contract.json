@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "deployment_mode": "validation_only",
+  "production_deploy_allowed": false,
+  "profiles": {
+    "php_storefront": {
+      "example_file": ".env.example",
+      "runtime_source": "db_connect.php",
+      "required_variable_names": [
+        "APP_ENV",
+        "DB_HOST",
+        "DB_PORT",
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASS"
+      ],
+      "sensitive_variable_names": [
+        "DB_PASS"
+      ]
+    },
+    "python_backend_preflight": {
+      "example_file": "backend/.env.example",
+      "runtime_source": "backend/production_check.py",
+      "required_variable_names": [
+        "APP_ENV",
+        "APP_URL",
+        "SESSION_SECRET",
+        "ENCRYPTION_KEY",
+        "DB_CONNECTION",
+        "DB_HOST",
+        "DB_USERNAME",
+        "DB_PASSWORD",
+        "DB_DATABASE",
+        "CORS_ALLOWED_ORIGINS"
+      ],
+      "sensitive_variable_names": [
+        "SESSION_SECRET",
+        "ENCRYPTION_KEY",
+        "DB_PASSWORD"
+      ]
+    }
+  },
+  "rules": {
+    "contract_stores_variable_names_only": true,
+    "secret_values_must_not_be_committed": true,
+    "staging_app_env_must_equal": "staging",
+    "runtime_values_are_supplied_outside_git": true,
+    "production_connectivity_is_not_part_of_validation": true
+  }
+}

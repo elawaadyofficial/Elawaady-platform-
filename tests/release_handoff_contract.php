@@ -22,6 +22,7 @@ $needles = [
     'migration_checksum_sha256',
     'deployment_mode: "validation_only"',
     'production_deploy_allowed: false',
+    "jq -c '.required_workflows' config/staging-release-manifest.json",
 ];
 
 foreach ($needles as $needle) {
@@ -31,17 +32,9 @@ foreach ($needles as $needle) {
     }
 }
 
-foreach ($required as $name) {
-    if (!is_string($name) || $name === '') {
-        fwrite(STDERR, "required workflow names must be non-empty strings\n");
-        exit(1);
-    }
-
-    $encoded = json_encode($name, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    if ($encoded === false || !str_contains($workflow, $encoded)) {
-        fwrite(STDERR, "release handoff workflow does not explicitly audit required workflow: {$name}\n");
-        exit(1);
-    }
+if (str_contains($workflow, 'REQUIRED_WORKFLOWS_JSON:')) {
+    fwrite(STDERR, "release candidate workflow must not duplicate the manifest workflow list in env metadata\n");
+    exit(1);
 }
 
 if (str_contains($workflow, 'elawaady.com')) {
@@ -49,4 +42,4 @@ if (str_contains($workflow, 'elawaady.com')) {
     exit(1);
 }
 
-fwrite(STDOUT, "release handoff contract OK for " . count($required) . " required workflows\n");
+fwrite(STDOUT, "release handoff contract OK; required workflows are sourced from the staging manifest (" . count($required) . ")\n");
