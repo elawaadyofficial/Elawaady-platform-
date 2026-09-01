@@ -4,6 +4,8 @@ on:
   push:
     branches: [chatgpt/store-build]
     paths:
+      - 'service.php'
+      - 'order_create.php'
       - 'lib/wallet.php'
       - 'lib/checkout.php'
       - 'lib/checkout_intent.php'
@@ -14,6 +16,7 @@ on:
       - 'tests/order_wallet_flow.php'
       - 'tests/atomic_checkout_flow.php'
       - 'tests/checkout_intent_flow.php'
+      - 'tests/checkout_intent_wiring.php'
       - '.github/workflows/order-wallet-integration.yml'
   workflow_dispatch:
 
@@ -70,17 +73,23 @@ jobs:
             mysql -h127.0.0.1 -uroot -proot elawaady_store < "$migration"
           done
 
-      - name: Lint transactional PHP services and tests
+      - name: Lint checkout entrypoints, services and tests
         run: |
+          php -l service.php
+          php -l order_create.php
           php -l lib/wallet.php
           php -l lib/checkout.php
           php -l lib/checkout_intent.php
           php -l tests/order_wallet_flow.php
           php -l tests/atomic_checkout_flow.php
           php -l tests/checkout_intent_flow.php
+          php -l tests/checkout_intent_wiring.php
 
       - name: Run checkout intent lifecycle
         run: php tests/checkout_intent_flow.php
+
+      - name: Verify checkout intent browser wiring
+        run: php tests/checkout_intent_wiring.php
 
       - name: Run order and wallet ledger flow
         run: php tests/order_wallet_flow.php
@@ -91,12 +100,15 @@ jobs:
       - name: Production isolation assertion
         run: |
           if grep -R -n --exclude-dir=.git -E 'https?://(www\.)?elawaady\.com' \
+            service.php \
+            order_create.php \
             lib/checkout.php \
             lib/checkout_intent.php \
             migrations/019_checkout_idempotency.sql \
             tests/order_wallet_flow.php \
             tests/atomic_checkout_flow.php \
             tests/checkout_intent_flow.php \
+            tests/checkout_intent_wiring.php \
             .github/workflows/order-wallet-integration.yml; then
             echo 'Order/wallet integration must never call the live store.' >&2
             exit 1
