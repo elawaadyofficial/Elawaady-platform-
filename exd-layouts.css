@@ -42,7 +42,9 @@
 .exd-tile__art video {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* Contained, never cropped: the store's promise is that what is uploaded
+       is what is shown. A transparent PNG floats on the band's own ground. */
+    object-fit: contain;
     display: block;
 }
 
@@ -287,7 +289,11 @@
 .exd-rail--chip .exd-tile__body { padding: 9px 10px 11px; text-align: center; }
 .exd-rail--chip .exd-tile__name { font-size: 10px; }
 
-.exd-rail .exd-tile__art { aspect-ratio: 1; }
+/* The row's shape comes from the artwork it holds — one value for the whole
+   rail, set inline by media_row_ratio_style(). Every card in the row wears the
+   same frame, so the row stays uniform, and the frame fits the art, so nothing
+   is cropped and no card is two thirds empty. */
+.exd-rail .exd-tile__art { aspect-ratio: var(--exd-art-ratio, 1); }
 
 /* A rail carries its own inline padding, so the heading above it needs the
    same alignment to line up with the first card. */
@@ -480,7 +486,7 @@
 .exd-key__art img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
 }
 
@@ -552,7 +558,7 @@
         var(--exd-bg-raise);
 }
 
-.exd-duo__art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.exd-duo__art img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .exd-duo__action {
     display: flex;
@@ -631,7 +637,7 @@
     overflow: hidden;
 }
 
-.exd-plat__art img { width: 100%; height: 100%; object-fit: cover; }
+.exd-plat__art img { width: 100%; height: 100%; object-fit: contain; }
 .exd-plat__mark { font-size: 19px; }
 
 .exd-plat__name {

@@ -3,6 +3,7 @@ require_once "db_connect.php";
 require_once "banner.php";
 require_once "sections.php";
 require_once "homepage.php";
+require_once "lib/media.php";
 require_once "settings_helper.php";
 
 $page_title = "Elawaady XDigital Platform | المتجر الرسمي";
@@ -105,7 +106,7 @@ require_once "header.php";
     <?php $exd_slides = exd_carousel_slides($conn); ?>
     <section class="hero-showcase">
         <div class="container">
-            <div class="hero-carousel" data-carousel>
+            <div class="hero-carousel <?= $exd_slides ? 'hero-carousel--art' : '' ?>" data-carousel>
                 <?php if ($exd_slides): ?>
                     <?php foreach ($exd_slides as $exd_i => $exd_slide): ?>
                         <article class="hero-slide hero-slide--art <?= $exd_i === 0 ? 'is-active' : '' ?>">
@@ -207,7 +208,7 @@ require_once "header.php";
             <?php elseif ($exd_layout === 'duo'): ?>
                 <?= exd_duo_grid($exd_items, fn($s) => 'service.php?id=' . (int) $s['id'], 'اكتشف المزيد', 'exd-duo--square') ?>
             <?php else: ?>
-                <div class="exd-rail exd-rail--poster">
+                <div class="exd-rail exd-rail--poster"<?= media_row_ratio_style($exd_items) ?>>
                     <?php foreach ($exd_items as $exd_item): ?><?= exd_tile($exd_item) ?><?php endforeach; ?>
                 </div>
             <?php endif; ?>

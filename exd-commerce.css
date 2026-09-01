@@ -36,7 +36,11 @@
 /* The artwork is the largest thing on the page, because it is what the buyer
    is actually looking at. It is never replaced by an icon. */
 .exd-media--service {
-    --exd-media-ratio: 1;
+    /* A single, standalone image: the frame takes the artwork's own shape,
+       set inline by media_ratio_style(). Nothing is cropped and nothing is
+       padded. In a grid this would break the row, which is why it is only
+       done here. */
+    --exd-media-ratio: var(--exd-art-ratio, 1);
     border-radius: var(--exd-radius-xl);
     overflow: hidden;
     border: 1px solid var(--exd-border);
@@ -321,4 +325,100 @@
     .cart-line__art { inline-size: 60px; }
     .cart-line > :last-child { grid-column: 1 / -1; }
     .outcome-actions .btn { flex: 1 1 100%; }
+}
+
+/* ── Hero carousel carrying real artwork ─────────────────────────────────── */
+
+/* When the slides are the store's own banners, the frame takes their shape
+   rather than imposing one — so a 3:1 banner is shown at 3:1, whole, and the
+   promise that what is uploaded is what is displayed holds here too.
+   
+   The doubled class is deliberate. motion.css loads after this file and sets
+   .hero-carousel{min-height:520px}; against a bare .hero-carousel--art that
+   min-height wins, and an aspect-ratio of 3/1 then resolves the width from it
+   — 3 × 520 = 1560px, wider than the page, which is exactly the horizontal
+   scrollbar this rule exists to avoid. */
+.hero-carousel.hero-carousel--art {
+    min-height: 0;
+    aspect-ratio: 3 / 1;
+    background: var(--exd-bg-panel);
+}
+
+.hero-carousel--art .hero-slide {
+    display: block;
+    padding: 0;
+}
+
+.hero-carousel--art .hero-slide__link img {
+    object-fit: contain;
+}
+
+@media (max-width: 760px) {
+    /* A 3:1 banner is a letterbox on a phone. Give it more height and let the
+       artwork settle inside rather than shrinking to a strip. */
+    .hero-carousel.hero-carousel--art { aspect-ratio: 4 / 3; min-height: 0; }
+}
+
+
+/* ── A width no image may exceed ─────────────────────────────────────────── */
+
+/* An image is allowed to be smaller than its box and never larger. Without
+   this an intrinsically wide file can widen its container, and one overflowing
+   element gives the whole page a horizontal scrollbar. */
+img,
+video,
+picture,
+svg {
+    max-width: 100%;
+}
+
+/* ── Inner-page grids ────────────────────────────────────────────────────── */
+
+/* The catalogue grids were fixed at four columns at every width, so a phone
+   got four columns squeezed past the edge of the screen and a horizontal
+   scrollbar with them. The spec's own answer: four on a desktop, three on a
+   tablet, two on a phone. minmax(0, 1fr) rather than 1fr so a long word inside
+   a card cannot push the column wider than its share. */
+.category-grid,
+.service-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1000px) {
+    .category-grid,
+    .service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+    .category-grid,
+    .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .category-card,
+    .service-card { padding: 14px; }
+}
+
+/* A search field is allowed to shrink. Without an explicit minimum an input in
+   a flex or grid row keeps its intrinsic width and pushes the header wider
+   than the screen. */
+.header-search input { min-width: 0; }
+.header-search { min-width: 0; }
+
+/* A card's text is allowed to wrap anywhere it must. A single long token —
+   a URL in a description, a service code — otherwise sets the card's minimum
+   width, and one card wider than its column gives the page a scrollbar. */
+.category-card,
+.service-card,
+.product-card,
+.exd-tile,
+.exd-key {
+    min-width: 0;
+}
+
+.category-card p,
+.service-card p,
+.product-body p,
+.card-body p,
+.exd-tile__name,
+.exd-key__label {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/lib/media.php';
 /*
 |--------------------------------------------------------------------------
 | EXD — homepage section renderer
@@ -25,8 +26,11 @@ function exd_tile(array $service): string {
         $art = '<div class="exd-tile__art"><video src="' . e($media)
              . '" muted loop playsinline preload="metadata" aria-label="' . e($name) . '"></video></div>';
     } elseif ($media !== '') {
-        $art = '<div class="exd-tile__art"><img src="' . e($media) . '" alt="' . e($name)
-             . '" loading="lazy" decoding="async"></div>';
+        // The frame takes the artwork's own shape, so a wide banner is not
+        // cropped into a square and a square is not letterboxed into a strip.
+        $art = '<div class="exd-tile__art"><img src="' . e($media)
+             . '" alt="' . e($name) . '"' . media_size_attrs($media)
+             . ' loading="lazy" decoding="async"></div>';
     } else {
         // Holds the shape without pretending to be artwork.
         $art = '<div class="exd-tile__art exd-tile__art--empty">'
@@ -119,7 +123,8 @@ function exd_category_bands($conn, array $categories, array $servicesByCategory)
                 foreach (array_slice($services, 0, $take) as $service) {
                     $tiles .= exd_tile($service);
                 }
-                $body = '<div class="exd-rail exd-rail--' . $rail . '">' . $tiles . '</div>';
+                $body = '<div class="exd-rail exd-rail--' . $rail . '"'
+                      . media_row_ratio_style(array_slice($services, 0, $take)) . '>' . $tiles . '</div>';
         }
 
         $out .= exd_section_banner($conn, $cat, (string) ($cat['description'] ?? ''))
@@ -257,8 +262,8 @@ function exd_key_card(array $item, string $href, string $flag = ''): string {
     $media = trim((string) ($item['image'] ?? ''));
 
     if ($media !== '') {
-        $art = '<img src="' . e($media) . '" alt="' . e($name)
-             . '" loading="lazy" decoding="async">';
+        $art = '<img src="' . e($media) . '" alt="' . e($name) . '"' . media_size_attrs($media)
+             . ' loading="lazy" decoding="async">';
     } else {
         $icon = trim((string) ($item['icon'] ?? ''));
         $art = '<span class="exd-key__mark">'

@@ -2,6 +2,7 @@
 require_once "db_connect.php";
 require_once "lib/auth.php";
 require_once "lib/pricing.php";
+require_once "lib/media.php";
 require_once "settings_helper.php";
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -158,7 +159,7 @@ require_once "header.php";
     <div class="container service-layout">
 
         <div class="service-visual reveal">
-            <div class="exd-media exd-media--service">
+            <div class="exd-media exd-media--service"<?= media_ratio_style($heroMedia, 0.7, 3.0) ?>>
                 <?php if ($heroMedia !== '' && $heroIsVideo): ?>
                     <video src="<?= e($heroMedia) ?>" preload="metadata" playsinline muted loop controls></video>
                 <?php elseif ($heroMedia !== ''): ?>
