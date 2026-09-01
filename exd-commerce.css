@@ -355,9 +355,11 @@
 }
 
 @media (max-width: 760px) {
-    /* A 3:1 banner is a letterbox on a phone. Give it more height and let the
-       artwork settle inside rather than shrinking to a strip. */
-    .hero-carousel.hero-carousel--art { aspect-ratio: 4 / 3; min-height: 0; }
+    /* motion.css raises min-height to 620px here, which would put a 3:1 banner
+       in a box five times its own height. The frame keeps the artwork's shape
+       on a phone exactly as it does on a desktop: the banner fills it, and
+       there is no empty box around it. */
+    .hero-carousel.hero-carousel--art { aspect-ratio: 3 / 1; min-height: 0; }
 }
 
 
