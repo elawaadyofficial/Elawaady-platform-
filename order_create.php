@@ -14,6 +14,7 @@
 
 require_once __DIR__ . '/db_connect.php';
 require_once __DIR__ . '/lib/auth.php';
+require_once __DIR__ . '/lib/checkout_intent.php';
 require_once __DIR__ . '/lib/pricing.php';
 require_once __DIR__ . '/lib/checkout.php';
 require_once __DIR__ . '/lib/notify.php';
@@ -50,13 +51,12 @@ if ($serviceId === 0) {
     exit;
 }
 
-// A browser may attach a per-form retry key. It is never trusted for pricing or
-// identity; its only job is to let the atomic checkout recognize the same
-// signed-in purchase when a POST is retried. Invalid keys are ignored rather
-// than allowed to influence the order.
+// Every service form carries a short-lived retry key issued into the same PHP
+// session and bound to this exact service. This closes the gap where a caller
+// could invent a syntactically valid idempotency key and still reach checkout.
 $idempotencyKey = trim((string) ($_POST['checkout_intent'] ?? ''));
-if ($idempotencyKey !== '' && !preg_match('/^[A-Za-z0-9._:-]{16,64}$/', $idempotencyKey)) {
-    order_fail($serviceId, 'تعذّر التحقق من محاولة الشراء. أعد تحميل الصفحة وحاول مرة أخرى.');
+if (!checkout_intent_verify($idempotencyKey, $serviceId)) {
+    order_fail($serviceId, 'انتهت صلاحية محاولة الشراء. أعد تحميل صفحة الخدمة وحاول مرة أخرى.');
 }
 
 // The same rule as the service page: no supplier column is selected, so the
