@@ -1,6 +1,7 @@
 <?php
 require_once "db_connect.php";
 require_once "lib/auth.php";
+require_once "lib/checkout_intent.php";
 require_once "lib/pricing.php";
 require_once "lib/media.php";
 require_once "settings_helper.php";
@@ -50,8 +51,9 @@ if (!$service) {
 $page_title       = ($service['seo_title'] ?: $service['name']) . ' | Elawaady XDigital';
 $meta_description = (string) ($service['seo_description'] ?: $service['description']);
 
-$user     = auth_user();
-$currency = (string) ($service['currency'] ?: setting('default_currency', 'EGP'));
+$user           = auth_user();
+$currency       = (string) ($service['currency'] ?: setting('default_currency', 'EGP'));
+$checkoutIntent = checkout_intent_issue((int) $service['id']);
 
 $minQuantity = max(1, (int) $service['min_quantity']);
 $quantity    = max($minQuantity, (int) ($_GET['qty'] ?? $minQuantity));
@@ -222,6 +224,7 @@ require_once "header.php";
             <form class="service-order" method="post" action="order_create.php">
                 <?= csrf_field() ?>
                 <input type="hidden" name="service_id" value="<?= (int) $service['id'] ?>">
+                <input type="hidden" name="checkout_intent" value="<?= e($checkoutIntent) ?>">
 
                 <?php if ((int) $service['max_quantity'] > 1): ?>
                     <div class="form-group">
