@@ -1,0 +1,145 @@
+name: Release Handoff Integrity
+
+on:
+  workflow_run:
+    workflows:
+      - Release Candidate
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: release-handoff-integrity-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify-release-handoff:
+    if: >-
+      github.event.workflow_run.head_branch == 'chatgpt/store-build' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Download exact release handoff artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          ARTIFACT_NAME="release-candidate-$CANDIDATE_SHA"
+          ARTIFACTS_JSON="$(gh api "repos/$REPO/actions/runs/$RELEASE_RUN_ID/artifacts")"
+          ARTIFACT_ID="$(jq -r --arg name "$ARTIFACT_NAME" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$ARTIFACTS_JSON")"
+
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "Expected exactly one non-expired artifact named $ARTIFACT_NAME on Release Candidate run $RELEASE_RUN_ID"
+            exit 1
+          fi
+
+          gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" > release-handoff.zip
+          unzip -q release-handoff.zip -d release-handoff
+          test -f release-handoff/release-candidate-handoff.json
+
+          echo "ARTIFACT_ID=$ARTIFACT_ID" >> "$GITHUB_ENV"
+
+      - name: Verify handoff binds to candidate and migrations
+        env:
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+
+          HANDOFF="release-handoff/release-candidate-handoff.json"
+
+          jq -e --arg sha "$CANDIDATE_SHA" '
+            .schema_version == 2
+            and .candidate_sha == $sha
+            and .release_branch == "chatgpt/store-build"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+            and (.accepted_workflow_runs | type == "object" and length == 8)
+            and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))
+          ' "$HANDOFF" >/dev/null
+
+          mapfile -t MIGRATION_FILES < <(git ls-files 'migrations/*.sql' | sort)
+          if [ "${#MIGRATION_FILES[@]}" -eq 0 ]; then
+            echo "No tracked SQL migrations found"
+            exit 1
+          fi
+
+          ACTUAL_MIGRATION_CHECKSUM="$(
+            printf '%s\0' "${MIGRATION_FILES[@]}" \
+              | xargs -0 sha256sum \
+              | sha256sum \
+              | awk '{print $1}'
+          )"
+          RECORDED_MIGRATION_CHECKSUM="$(jq -r '.migration_checksum_sha256' "$HANDOFF")"
+
+          if [ "$RECORDED_MIGRATION_CHECKSUM" != "$ACTUAL_MIGRATION_CHECKSUM" ]; then
+            echo "Migration checksum mismatch"
+            echo "recorded=$RECORDED_MIGRATION_CHECKSUM"
+            echo "actual=$ACTUAL_MIGRATION_CHECKSUM"
+            exit 1
+          fi
+
+          CANDIDATE_TREE_SHA="$(git rev-parse 'HEAD^{tree}')"
+          HANDOFF_SHA256="$(sha256sum "$HANDOFF" | awk '{print $1}')"
+
+          jq -n \
+            --arg schema_version "1" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg candidate_tree_sha "$CANDIDATE_TREE_SHA" \
+            --arg handoff_sha256 "$HANDOFF_SHA256" \
+            --arg migration_checksum "$ACTUAL_MIGRATION_CHECKSUM" \
+            --arg release_run_id "$RELEASE_RUN_ID" \
+            --arg artifact_id "$ARTIFACT_ID" \
+            '{
+              schema_version: ($schema_version | tonumber),
+              candidate_sha: $candidate_sha,
+              candidate_tree_sha: $candidate_tree_sha,
+              handoff_sha256: $handoff_sha256,
+              migration_checksum_sha256: $migration_checksum,
+              source_release_candidate_run_id: ($release_run_id | tonumber),
+              source_handoff_artifact_id: ($artifact_id | tonumber),
+              release_branch: "chatgpt/store-build",
+              deployment_mode: "validation_only",
+              production_deploy_allowed: false,
+              integrity_verified: true
+            }' > release-candidate-integrity.json
+
+          jq -e --arg sha "$CANDIDATE_SHA" '
+            .candidate_sha == $sha
+            and (.candidate_tree_sha | test("^[0-9a-f]{40}$"))
+            and (.handoff_sha256 | test("^[0-9a-f]{64}$"))
+            and (.migration_checksum_sha256 | test("^[0-9a-f]{64}$"))
+            and .integrity_verified == true
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+          ' release-candidate-integrity.json >/dev/null
+
+          cat release-candidate-integrity.json
+
+      - name: Upload integrity attestation
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-integrity-${{ github.event.workflow_run.head_sha }}
+          path: release-candidate-integrity.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Integrity summary
+        env:
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "Release handoff integrity verified for $CANDIDATE_SHA"
+          echo "The attestation binds the handoff SHA-256, Git tree SHA, migration checksum, source run, and source artifact ID."
+          echo "This workflow validates release evidence only and has no deployment capability."
