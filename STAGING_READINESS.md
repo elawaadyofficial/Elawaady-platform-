@@ -28,6 +28,22 @@ A staging candidate is valid only when the `Staging Readiness` workflow accepts 
 
 The candidate must also preserve the production-isolation assertions embedded in the integration workflows. A failure of any required workflow on the candidate commit blocks staging readiness.
 
+## Release evidence chain
+
+Passing the eight CI gates is necessary but is not the final handoff signal. The repository records and independently verifies the candidate through this validation-only chain:
+
+1. `Staging Readiness` validates the required CI workflow set for the candidate.
+2. `Release Candidate` records the accepted workflow run IDs, candidate SHA, rollback reference, and migration checksum.
+3. `Release Handoff Integrity` binds the handoff to the candidate tree and verifies document/migration integrity.
+4. `Staging Handoff Final` produces the validation-only staging handoff record.
+5. `Release Evidence Index` indexes the release evidence and artifact references.
+6. `Release Evidence Verify` independently recalculates tree, migration, and release-document hashes and must end with `verifier_state=pass`.
+7. `Release Readiness Signal` emits `release-readiness-signal-<candidate SHA>` only after the independent verifier succeeds.
+
+The `Release Readiness Signal` is the final repository-level staging handoff signal. It records the candidate SHA, candidate tree SHA, previous known-good rollback SHA, migration checksum, verifier run/artifact IDs, and evidence-index run/artifact IDs. Its state must be `staging_handoff_ready`, its deployment mode must be `validation_only`, and `production_deploy_allowed` must remain `false`.
+
+A missing, expired, failed, mismatched, or unverifiable artifact anywhere in this chain means the candidate is not ready for staging handoff.
+
 ## Database readiness
 
 - Build and integration tests must work from an isolated empty/local MariaDB database using repository migrations and CI fixtures only.
@@ -104,24 +120,30 @@ Do not attempt an automatic production rollback from `chatgpt/store-build`.
 
 ## GitHub branch protection gap
 
-Repository branch protection is not currently enforced for `chatgpt/store-build`. Until required checks/rulesets are configured at GitHub repository level, `Staging Readiness` is the repository's explicit release gate but cannot prevent a privileged actor from bypassing it manually.
+Repository branch protection is not currently enforced for `chatgpt/store-build`. Until required checks/rulesets are configured at GitHub repository level, the repository workflows provide validation and evidence but cannot prevent a privileged actor from bypassing them manually.
 
-Recommended protected-branch requirements for a future release branch are the eight CI workflows listed above plus reviewed pull requests and prohibition of force pushes.
+Recommended protected-branch requirements for a future release branch are the eight CI workflows listed above, the final release-readiness verification path, reviewed pull requests, and prohibition of force pushes.
 
 ## Release path
 
 1. Confirm the candidate SHA on `chatgpt/store-build`.
-2. Confirm `Staging Readiness` is green for that candidate or an explicitly validated descendant under its workflow rules.
-3. Review the diff against the intended release branch through a pull request.
-4. Deploy only to an isolated staging environment.
-5. Run manual staging QA and record the rollback point.
-6. Fix regressions on the build branch and repeat the gate if needed.
-7. Prepare production as a separate reviewed release after staging sign-off.
+2. Confirm all eight required CI gates are successful for the candidate under the repository workflow rules.
+3. Confirm the release evidence chain reaches a successful `Release Readiness Signal` for that exact candidate and that the emitted signal has `readiness_state=staging_handoff_ready` and `production_deploy_allowed=false`.
+4. Review the candidate diff against the intended release branch through a pull request.
+5. Treat any staging deployment as a separate, explicitly authorized action outside these validation-only workflows.
+6. Deploy only to an isolated staging environment with staging-only credentials and data.
+7. Run manual staging QA and record the rollback point.
+8. Fix regressions on the build branch and repeat the complete gate if needed.
+9. Prepare production as a separate reviewed release only after staging sign-off.
+
+No workflow in the validation chain is authorization to deploy to production.
 
 ## Current blocker
 
-The code-level staging gate is operational, but GitHub branch protection/required status checks are not enforced on `chatgpt/store-build`. Production deployment remains intentionally out of scope.
+The code-level release evidence and readiness chain is present, but GitHub branch protection/required status checks are not enforced on `chatgpt/store-build`. Production deployment remains intentionally out of scope.
+
+The next operational proof required is a successful end-to-end run that emits `release-readiness-signal-<candidate SHA>` for the current candidate and preserves the expected rollback/tree/migration evidence.
 
 ## Next concrete action
 
-Add a machine-readable staging release manifest/check that records the candidate SHA and validates the documented required workflow set before a staging handoff, without adding any deployment capability or production credentials.
+Verify the first successful final readiness artifact for the current candidate, including its candidate SHA, tree SHA, rollback SHA, migration checksum, verifier run/artifact IDs, and evidence-index references. If the artifact validates, use that PASS as the final repository-level staging handoff evidence; any actual staging deployment must remain a separate explicitly authorized action with no production credentials or host access introduced into this branch.
