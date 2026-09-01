@@ -5,6 +5,10 @@
  * Creates the order, debits the wallet, records the payment and writes the
  * initial order timeline entry inside ONE database transaction. If any write
  * fails, every write is rolled back.
+ *
+ * An optional idempotency_key makes a checkout safe to retry. Requests for the
+ * same signed-in user and key return the original paid order without another
+ * wallet debit. The database unique index remains the final duplicate guard.
  */
 
 require_once __DIR__ . '/../db_connect.php';
@@ -16,9 +20,10 @@ require_once __DIR__ . '/../db_connect.php';
  * - user_id, service_name, quantity, unit_price
  * Optional:
  * - service_id, options_total, mediation_fee, currency, target_url,
- *   target_type, quality_option, warranty_option, customer_notes
+ *   target_type, quality_option, warranty_option, customer_notes,
+ *   idempotency_key
  *
- * @return array{order_id:int,order_code:string,total:float,balance_after:float}
+ * @return array{order_id:int,order_code:string,total:float,balance_after:float,replayed:bool}
  */
 function checkout_with_wallet(array $input): array {
     global $conn;
@@ -36,6 +41,7 @@ function checkout_with_wallet(array $input): array {
     $qualityOption = trim((string) ($input['quality_option'] ?? ''));
     $warrantyOption = trim((string) ($input['warranty_option'] ?? ''));
     $customerNotes = trim((string) ($input['customer_notes'] ?? ''));
+    $idempotencyKey = trim((string) ($input['idempotency_key'] ?? ''));
 
     if ($userId <= 0) {
         throw new InvalidArgumentException('user_id is required');
@@ -52,6 +58,9 @@ function checkout_with_wallet(array $input): array {
     if (!preg_match('/^[A-Z]{3,10}$/', $currency)) {
         throw new InvalidArgumentException('currency must be a 3-10 letter code');
     }
+    if ($idempotencyKey !== '' && !preg_match('/^[A-Za-z0-9._:-]{16,64}$/', $idempotencyKey)) {
+        throw new InvalidArgumentException('idempotency_key must be 16-64 safe characters');
+    }
 
     $total = round(($quantity * $unitPrice) + $optionsTotal + $mediationFee, 2);
     if ($total <= 0) {
@@ -62,6 +71,8 @@ function checkout_with_wallet(array $input): array {
 
     $conn->begin_transaction();
     try {
+        // Lock the user first. This serializes simultaneous checkouts for the
+        // same account so the second retry observes the first committed order.
         $user = fetch_one(
             $conn,
             "SELECT id, status FROM platform_users WHERE id = ? FOR UPDATE",
@@ -70,6 +81,51 @@ function checkout_with_wallet(array $input): array {
         );
         if ($user === null || (string) $user['status'] !== 'active') {
             throw new RuntimeException('الحساب غير متاح للشراء.');
+        }
+
+        if ($idempotencyKey !== '') {
+            $existing = fetch_one(
+                $conn,
+                "SELECT id, order_code, service_id, quantity, total_price, currency
+                   FROM orders
+                  WHERE user_id = ? AND idempotency_key = ?
+                  LIMIT 1",
+                'is',
+                $userId,
+                $idempotencyKey
+            );
+
+            if ($existing !== null) {
+                $existingServiceId = $existing['service_id'] === null ? 0 : (int) $existing['service_id'];
+                $requestedServiceId = $serviceId === null ? 0 : $serviceId;
+                $sameRequest = $existingServiceId === $requestedServiceId
+                    && (int) $existing['quantity'] === $quantity
+                    && abs((float) $existing['total_price'] - $total) < 0.001
+                    && strtoupper((string) $existing['currency']) === $currency;
+
+                if (!$sameRequest) {
+                    throw new RuntimeException('تم استخدام مفتاح الطلب نفسه لعملية شراء مختلفة.');
+                }
+
+                $replayWallet = fetch_one(
+                    $conn,
+                    'SELECT balance FROM wallets WHERE user_id = ?',
+                    'i',
+                    $userId
+                );
+                if ($replayWallet === null) {
+                    throw new RuntimeException('تعذر التحقق من رصيد المحفظة للطلب السابق.');
+                }
+
+                $conn->commit();
+                return [
+                    'order_id' => (int) $existing['id'],
+                    'order_code' => (string) $existing['order_code'],
+                    'total' => (float) $existing['total_price'],
+                    'balance_after' => round((float) $replayWallet['balance'], 2),
+                    'replayed' => true,
+                ];
+            }
         }
 
         $wallet = fetch_one(
@@ -109,17 +165,19 @@ function checkout_with_wallet(array $input): array {
 
         $stmt = $conn->prepare(
             "INSERT INTO orders
-                (order_code, user_id, service_id, service_name, quantity, unit_price,
+                (order_code, idempotency_key, user_id, service_id, service_name, quantity, unit_price,
                  options_total, mediation_fee, total_price, currency, payment_status,
                  order_status, target_url, target_type, quality_option, warranty_option,
                  customer_notes, payment_confirmed_by, payment_confirmed_at,
                  payment_confirmed_amount, payment_method_recorded)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', 'new', ?, ?, ?, ?, ?, ?, NOW(), ?, 'wallet')"
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', 'new', ?, ?, ?, ?, ?, ?, NOW(), ?, 'wallet')"
         );
         $confirmedBy = $userId;
+        $idempotencyDb = $idempotencyKey !== '' ? $idempotencyKey : null;
         $stmt->bind_param(
-            'siisiddddssssssid',
+            'ssiisiddddssssssid',
             $orderCode,
+            $idempotencyDb,
             $userId,
             $serviceId,
             $serviceName,
@@ -187,6 +245,7 @@ function checkout_with_wallet(array $input): array {
             'order_code' => $orderCode,
             'total' => $total,
             'balance_after' => $balanceAfter,
+            'replayed' => false,
         ];
     } catch (Throwable $e) {
         $conn->rollback();

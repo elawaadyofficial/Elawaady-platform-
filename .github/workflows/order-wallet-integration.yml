@@ -9,6 +9,7 @@ on:
       - 'migrations/005_platform_accounts.sql'
       - 'migrations/009_orders.sql'
       - 'migrations/010_wallet_payments.sql'
+      - 'migrations/019_checkout_idempotency.sql'
       - 'tests/order_wallet_flow.php'
       - 'tests/atomic_checkout_flow.php'
       - '.github/workflows/order-wallet-integration.yml'
@@ -61,7 +62,8 @@ jobs:
           for migration in \
             migrations/005_platform_accounts.sql \
             migrations/009_orders.sql \
-            migrations/010_wallet_payments.sql
+            migrations/010_wallet_payments.sql \
+            migrations/019_checkout_idempotency.sql
           do
             mysql -h127.0.0.1 -uroot -proot elawaady_store < "$migration"
           done
@@ -76,13 +78,14 @@ jobs:
       - name: Run order and wallet ledger flow
         run: php tests/order_wallet_flow.php
 
-      - name: Run atomic checkout commit and rollback flow
+      - name: Run atomic checkout commit, retry and rollback flow
         run: php tests/atomic_checkout_flow.php
 
       - name: Production isolation assertion
         run: |
           if grep -R -n --exclude-dir=.git -E 'https?://(www\.)?elawaady\.com' \
             lib/checkout.php \
+            migrations/019_checkout_idempotency.sql \
             tests/order_wallet_flow.php \
             tests/atomic_checkout_flow.php \
             .github/workflows/order-wallet-integration.yml; then
