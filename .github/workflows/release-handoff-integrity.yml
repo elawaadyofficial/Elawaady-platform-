@@ -27,6 +27,11 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
+      - name: Validate integrity workflow contract
+        run: |
+          php -l tests/release_handoff_integrity_contract.php
+          php tests/release_handoff_integrity_contract.php
+
       - name: Download exact release handoff artifact
         env:
           GH_TOKEN: ${{ github.token }}
