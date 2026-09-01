@@ -78,21 +78,26 @@ jobs:
         run: |
           set -euo pipefail
 
+          RUNS_JSON="$(gh api "repos/$REPO/actions/workflows/release-candidate.yml/runs?branch=chatgpt%2Fstore-build&status=success&per_page=20")"
           PREVIOUS_KNOWN_GOOD_SHA="$(
-            gh api "repos/$REPO/actions/workflows/release-candidate.yml/runs?branch=chatgpt%2Fstore-build&status=success&per_page=20" \
-              --jq '.workflow_runs[] | select(.head_sha != env.CANDIDATE_SHA) | .head_sha' \
-              | head -n 1
+            jq -r --arg candidate "$CANDIDATE_SHA" \
+              '[.workflow_runs[] | select(.head_sha != $candidate) | .head_sha][0] // empty' \
+              <<<"$RUNS_JSON"
           )"
 
           if [ -z "$PREVIOUS_KNOWN_GOOD_SHA" ]; then
             PREVIOUS_KNOWN_GOOD_SHA="none-recorded"
           fi
 
+          mapfile -t MIGRATION_FILES < <(git ls-files 'migrations/*.sql' | sort)
+          if [ "${#MIGRATION_FILES[@]}" -eq 0 ]; then
+            echo "No tracked SQL migrations found"
+            exit 1
+          fi
+
           MIGRATION_CHECKSUM="$(
-            git ls-files \
-              | grep -E '(^|/)(migrations?|database/migrations?)/.*\.sql$' \
-              | sort \
-              | while read -r file; do sha256sum "$file"; done \
+            printf '%s\0' "${MIGRATION_FILES[@]}" \
+              | xargs -0 sha256sum \
               | sha256sum \
               | awk '{print $1}'
           )"
