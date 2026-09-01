@@ -422,3 +422,89 @@ svg {
     overflow-wrap: anywhere;
     word-break: break-word;
 }
+
+/* ── Mediation ───────────────────────────────────────────────────────────── */
+
+.mediation-hero {
+    padding-block: clamp(40px, 6vw, 88px);
+    background:
+        radial-gradient(120% 100% at 80% 0%, rgba(168, 85, 247, .12), transparent 62%),
+        var(--exd-bg-deep);
+    border-bottom: 1px solid var(--exd-border);
+}
+
+.mediation-hero h1 {
+    font-size: var(--exd-fs-2xl);
+    font-weight: var(--exd-fw-black);
+    margin: 14px 0 12px;
+    max-width: 18ch;
+}
+
+.mediation-hero p {
+    color: var(--exd-text-muted);
+    font-size: var(--exd-fs-md);
+    line-height: var(--exd-lh-base);
+    max-width: 62ch;
+    margin: 0 0 10px;
+}
+
+.mediation-licence { font-size: var(--exd-fs-sm); }
+.mediation-licence strong { color: var(--exd-text); }
+
+.mediation-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.mediation-steps li {
+    display: flex;
+    gap: 14px;
+    padding: 20px;
+    border-radius: var(--exd-radius-lg);
+    border: 1px solid var(--exd-border);
+    background: var(--exd-bg-panel);
+}
+
+.step-num {
+    flex: 0 0 auto;
+    inline-size: 34px;
+    block-size: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-weight: var(--exd-fw-black);
+    font-size: var(--exd-fs-sm);
+    color: var(--exd-text);
+    background: var(--exd-bg-inset);
+    border: 1px solid var(--exd-border-brand);
+}
+
+.mediation-steps h3 { font-size: var(--exd-fs-sm); font-weight: var(--exd-fw-bold); margin: 4px 0 6px; }
+.mediation-steps p  { font-size: var(--exd-fs-xs); color: var(--exd-text-muted); line-height: var(--exd-lh-base); margin: 0; }
+
+.mediation-rules {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    margin-bottom: 28px;
+}
+
+.mediation-rules article {
+    padding: 22px;
+    border-radius: var(--exd-radius-lg);
+    border: 1px solid var(--exd-border);
+    background: var(--exd-bg-panel);
+}
+
+.mediation-rules h3 { font-size: var(--exd-fs-sm); font-weight: var(--exd-fw-bold); margin: 0 0 12px; }
+
+.footer-licence,
+.footer-hours {
+    font-size: var(--exd-fs-xs);
+    color: var(--exd-text-muted);
+    margin-top: 10px;
+}

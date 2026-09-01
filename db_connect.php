@@ -7,6 +7,54 @@
 | Local defaults remain intentionally development-friendly.
 */
 
+/**
+ * Load a .env file into the environment, once, if one is present.
+ *
+ * Hosting supplies real configuration through environment variables and that
+ * stays the way production is configured. This exists so a local checkout and
+ * a CLI script — a migration run, a test — see the same settings as the web
+ * server without every shell having to export them by hand.
+ *
+ * A variable already set in the environment always wins: the file fills gaps,
+ * it never overrides the host. .env is git-ignored and never committed.
+ */
+function load_dotenv(string $path): void {
+    static $loaded = [];
+
+    if (isset($loaded[$path]) || !is_file($path) || !is_readable($path)) {
+        return;
+    }
+    $loaded[$path] = true;
+
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+            continue;
+        }
+
+        [$key, $value] = explode('=', $line, 2);
+        $key   = trim($key);
+        $value = trim($value);
+
+        if ($key === '' || !preg_match('/^[A-Z_][A-Z0-9_]*$/i', $key)) {
+            continue;
+        }
+        // Strip one layer of matching quotes, so a value with spaces survives.
+        if (strlen($value) >= 2
+            && (($value[0] === '"' && str_ends_with($value, '"'))
+             || ($value[0] === "'" && str_ends_with($value, "'")))) {
+            $value = substr($value, 1, -1);
+        }
+
+        if (getenv($key) === false) {
+            putenv($key . '=' . $value);
+            $_ENV[$key] = $value;
+        }
+    }
+}
+
+load_dotenv(__DIR__ . '/.env');
+
 function env_value(string $key, ?string $default = null): ?string {
     $value = getenv($key);
     return ($value === false || $value === '') ? $default : $value;

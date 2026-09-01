@@ -226,7 +226,7 @@ if (!$paidFromWallet) {
         $supplierId   = $service['supplier_id'] !== null ? (int) $service['supplier_id'] : null;
 
         $stmt->bind_param(
-            'siisssiiddddssssssiii',
+            'siissssiddddsssssssiii',
             $orderCode, $ownerId, $serviceId, $service['name'],
             $customerName, $customerPhone, $customerEmail,
             $quantity, $unit, $optionsTotal, $mediationFee, $total, $currencyCode,
