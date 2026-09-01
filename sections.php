@@ -266,8 +266,10 @@ function exd_key_card(array $item, string $href, string $flag = ''): string {
              . ' loading="lazy" decoding="async">';
     } else {
         $icon = trim((string) ($item['icon'] ?? ''));
-        $art = '<span class="exd-key__mark">'
-             . ($icon !== '' ? e($icon) : mb_substr(e($name), 0, 1)) . '</span>';
+        // The glyph is wrapped so it paints above the tile's ring, which is an
+        // absolutely positioned pseudo-element and would otherwise cover it.
+        $art = '<span class="exd-key__mark"><span>'
+             . ($icon !== '' ? e($icon) : mb_substr(e($name), 0, 1)) . '</span></span>';
     }
 
     return '<a class="exd-key" href="' . e($href) . '">'

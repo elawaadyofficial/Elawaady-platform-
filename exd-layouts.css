@@ -36,7 +36,7 @@
     text-decoration: none;
 }
 
-.exd-tile__art { position: relative; background: var(--exd-bg-inset); }
+.exd-tile__art { position: relative; background: var(--exd-bg-art, var(--exd-bg-inset)); }
 
 .exd-tile__art img,
 .exd-tile__art video {
@@ -318,6 +318,11 @@
 .exd-rail--product > * { width: clamp(240px, 25vw, 306px); }
 .exd-rail--banner { --rail-gap: 18px; }
 
+/* One banner is not a rail. These headers ship at 2048x682 to span a section,
+   so a lone banner takes the full width rather than sitting at rail-card size
+   against an empty row. Specificity beats the mobile widths below, on purpose. */
+.exd-rail--banner > :only-child { width: auto; flex: 1 1 auto; min-width: 0; }
+
 @media (max-width: 620px) {
     .exd-rail { --rail-gap: 10px; --rail-pad: 16px; padding-block: 4px 12px; }
     .exd-rail--poster > * { width: 148px; }
@@ -475,9 +480,14 @@
     position: relative;
     display: grid;
     place-items: center;
-    aspect-ratio: var(--exd-key-ratio, 16 / 9);
-    /* The store's own ground. --exd-bg-inset is the blue well used for badges
-       and would make this whole block read navy instead of EXD purple. */
+    /* Square, because every card in the library is drawn 1:1 and a square image
+       stretches this box to 1:1 anyway — aspect-ratio yields to larger content.
+       While the default was 16/9 only the tiles with NO artwork obeyed it, so
+       an empty slot came out shorter than the tiles beside it and the row broke
+       its own line. */
+    aspect-ratio: var(--exd-key-ratio, 1);
+    /* A lit ground rather than the flat inset well: this block is large, and
+       the soft radial keeps it from reading as one dead rectangle. */
     background:
         radial-gradient(circle at 50% 30%, var(--exd-bg-panel-2), transparent 62%),
         var(--exd-bg-raise);
@@ -490,20 +500,38 @@
     display: block;
 }
 
-/* Until the artwork lands, the mark has to hold a card on its own, so it is
-   sized to be the subject rather than a small stand-in. */
+/* A slot with no artwork yet.
+   The library has a card for every platform except Facebook, so this is a real
+   state the store has to hold, not a rare one. It is built the same way the
+   product-card fallback is — one large glyph on a tilted ring — so an empty
+   slot reads as a designed tile rather than a card that failed to load. It
+   never borrows the brand gradient: that is spent on the buy action. */
 .exd-key__mark {
     display: grid;
     place-items: center;
-    width: 86px;
-    height: 86px;
-    border-radius: 26px;
-    background: var(--exd-bg-panel);
-    border: 1px solid var(--exd-border);
-    font-size: 38px;
+    width: 100%;
+    height: 100%;
+    font-size: clamp(2.2rem, 5.5vw, 4rem);
     line-height: 1;
     font-weight: 900;
-    color: var(--exd-violet-300);
+    color: rgba(255, 255, 255, .94);
+    text-shadow: 0 10px 34px rgba(128, 50, 255, .34);
+}
+
+.exd-key__mark::before {
+    content: "";
+    position: absolute;
+    width: 42%;
+    aspect-ratio: 1;
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 34%;
+    transform: rotate(24deg);
+    box-shadow: inset 0 0 42px rgba(255, 255, 255, .04), 0 0 48px rgba(139, 67, 255, .15);
+}
+
+.exd-key__mark > span {
+    position: relative;
+    z-index: 1;
 }
 
 /* The label rides on the artwork, the way a plate sits on a product shot. */
