@@ -46,6 +46,9 @@ function checkout_intent_issue(int $serviceId): string {
         'service_id' => $serviceId,
         'issued_at' => time(),
     ];
+    // Prune again after insertion so the session never temporarily exceeds the
+    // active-intent ceiling. Pruning only before insertion allowed N+1 entries.
+    checkout_intent_prune();
     return $key;
 }
 
