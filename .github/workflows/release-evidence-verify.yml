@@ -1,0 +1,162 @@
+name: Release Evidence Verify
+
+on:
+  workflow_run:
+    workflows:
+      - Release Evidence Index
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: release-evidence-verify-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify-release-evidence:
+    if: >-
+      github.event.workflow_run.head_branch == 'chatgpt/store-build' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Validate independent verifier contract
+        run: |
+          php -l tests/release_evidence_verify_contract.php
+          php tests/release_evidence_verify_contract.php
+
+      - name: Independently verify evidence chain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          INDEX_RUN_ID: ${{ github.event.workflow_run.id }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          download_artifact_by_id() {
+            local artifact_id="$1"
+            local output_dir="$2"
+            local zip_path="$3"
+            gh api "repos/$REPO/actions/artifacts/$artifact_id/zip" > "$zip_path"
+            mkdir -p "$output_dir"
+            unzip -q "$zip_path" -d "$output_dir"
+          }
+
+          INDEX_META="$(gh api "repos/$REPO/actions/runs/$INDEX_RUN_ID/artifacts")"
+          INDEX_ARTIFACT_ID="$(jq -r --arg name "release-evidence-index-$CANDIDATE_SHA" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$INDEX_META")"
+          if [ -z "$INDEX_ARTIFACT_ID" ]; then
+            echo "Expected exactly one current evidence index artifact"
+            exit 1
+          fi
+
+          download_artifact_by_id "$INDEX_ARTIFACT_ID" index index.zip
+          INDEX="index/release-evidence-index.json"
+          test -f "$INDEX"
+
+          jq -e --arg sha "$CANDIDATE_SHA" '
+            .schema_version == 1
+            and .candidate_sha == $sha
+            and .release_branch == "chatgpt/store-build"
+            and .evidence_state == "staging_validation_evidence_complete"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+            and (.accepted_workflow_runs | type == "object" and length == 8)
+            and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))
+            and (.evidence_chain | type == "object" and length == 3)
+          ' "$INDEX" >/dev/null
+
+          CURRENT_TREE="$(git rev-parse 'HEAD^{tree}')"
+          test "$CURRENT_TREE" = "$(jq -r '.candidate_tree_sha' "$INDEX")"
+
+          mapfile -t MIGRATION_FILES < <(git ls-files 'migrations/*.sql' | sort)
+          test "${#MIGRATION_FILES[@]}" -gt 0
+          CURRENT_MIGRATION_CHECKSUM="$(printf '%s\0' "${MIGRATION_FILES[@]}" | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+          test "$CURRENT_MIGRATION_CHECKSUM" = "$(jq -r '.migration_checksum_sha256' "$INDEX")"
+
+          RELEASE_RUN_ID="$(jq -r '.evidence_chain.release_candidate.run_id' "$INDEX")"
+          RELEASE_ARTIFACT_ID="$(jq -r '.evidence_chain.release_candidate.artifact_id' "$INDEX")"
+          INTEGRITY_RUN_ID="$(jq -r '.evidence_chain.release_integrity.run_id' "$INDEX")"
+          INTEGRITY_ARTIFACT_ID="$(jq -r '.evidence_chain.release_integrity.artifact_id' "$INDEX")"
+          FINAL_RUN_ID="$(jq -r '.evidence_chain.staging_final_handoff.run_id' "$INDEX")"
+          FINAL_ARTIFACT_ID="$(jq -r '.evidence_chain.staging_final_handoff.artifact_id' "$INDEX")"
+
+          for id in "$RELEASE_RUN_ID" "$RELEASE_ARTIFACT_ID" "$INTEGRITY_RUN_ID" "$INTEGRITY_ARTIFACT_ID" "$FINAL_RUN_ID" "$FINAL_ARTIFACT_ID"; do
+            [[ "$id" =~ ^[0-9]+$ ]]
+          done
+
+          download_artifact_by_id "$RELEASE_ARTIFACT_ID" release release.zip
+          download_artifact_by_id "$INTEGRITY_ARTIFACT_ID" integrity integrity.zip
+          download_artifact_by_id "$FINAL_ARTIFACT_ID" final final.zip
+
+          RELEASE="release/release-candidate-handoff.json"
+          INTEGRITY="integrity/release-candidate-integrity.json"
+          FINAL="final/staging-final-handoff.json"
+          test -f "$RELEASE"
+          test -f "$INTEGRITY"
+          test -f "$FINAL"
+
+          test "$(sha256sum "$RELEASE" | awk '{print $1}')" = "$(jq -r '.evidence_chain.release_candidate.sha256' "$INDEX")"
+          test "$(sha256sum "$INTEGRITY" | awk '{print $1}')" = "$(jq -r '.evidence_chain.release_integrity.sha256' "$INDEX")"
+          test "$(sha256sum "$FINAL" | awk '{print $1}')" = "$(jq -r '.evidence_chain.staging_final_handoff.sha256' "$INDEX")"
+
+          test "$(jq -r '.candidate_sha' "$RELEASE")" = "$CANDIDATE_SHA"
+          test "$(jq -r '.candidate_sha' "$INTEGRITY")" = "$CANDIDATE_SHA"
+          test "$(jq -r '.candidate_sha' "$FINAL")" = "$CANDIDATE_SHA"
+          test "$(jq -r '.migration_checksum_sha256' "$RELEASE")" = "$CURRENT_MIGRATION_CHECKSUM"
+          test "$(jq -r '.migration_checksum_sha256' "$INTEGRITY")" = "$CURRENT_MIGRATION_CHECKSUM"
+          test "$(jq -r '.migration_checksum_sha256' "$FINAL")" = "$CURRENT_MIGRATION_CHECKSUM"
+
+          test "$(jq -cS '.accepted_workflow_runs' "$RELEASE")" = "$(jq -cS '.accepted_workflow_runs' "$INDEX")"
+          test "$(jq -r '.staging_readiness_run_id' "$RELEASE")" = "$(jq -r '.staging_readiness_run_id' "$INDEX")"
+          test "$(jq -r '.previous_known_good_sha' "$FINAL")" = "$(jq -r '.previous_known_good_sha' "$INDEX")"
+
+          jq -n \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg candidate_tree_sha "$CURRENT_TREE" \
+            --arg migration_checksum "$CURRENT_MIGRATION_CHECKSUM" \
+            --arg evidence_index_sha256 "$(sha256sum "$INDEX" | awk '{print $1}')" \
+            --argjson evidence_index_run_id "$INDEX_RUN_ID" \
+            --argjson evidence_index_artifact_id "$INDEX_ARTIFACT_ID" \
+            '{
+              schema_version: 1,
+              candidate_sha: $candidate_sha,
+              candidate_tree_sha: $candidate_tree_sha,
+              migration_checksum_sha256: $migration_checksum,
+              evidence_index_sha256: $evidence_index_sha256,
+              evidence_index_run_id: $evidence_index_run_id,
+              evidence_index_artifact_id: $evidence_index_artifact_id,
+              verifier_state: "pass",
+              release_branch: "chatgpt/store-build",
+              deployment_mode: "validation_only",
+              production_deploy_allowed: false
+            }' > release-evidence-verification.json
+
+          jq -e --arg sha "$CANDIDATE_SHA" '
+            .schema_version == 1
+            and .candidate_sha == $sha
+            and .verifier_state == "pass"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+          ' release-evidence-verification.json >/dev/null
+
+      - name: Upload independent verification result
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-verification-${{ github.event.workflow_run.head_sha }}
+          path: release-evidence-verification.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Verification summary
+        run: |
+          echo "Independent release evidence verification passed."
+          echo "Candidate tree, migrations, upstream document hashes, and accepted CI evidence were recalculated from source artifacts."
+          echo "This is validation-only evidence and cannot deploy."
