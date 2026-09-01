@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "review_state": "sanitization_required_before_import",
+  "production_deploy_allowed": false,
+  "raw_source_import_allowed": false,
+  "reviewed_source": {
+    "drive_file_id": "1D_b0bQRLZTF0uWyNku-QlJVa2mW6k5J7",
+    "name": "e-network-backend-production-ready.zip",
+    "size_bytes": 278060,
+    "sha256": "5a70e678ebea9615c1ea078b8ad594bfa813385ca1f1a81daa396ae3fd21f0c3"
+  },
+  "raw_bundle_findings": [
+    "contains environment-specific absolute /working_dir paths",
+    "contains fixed bootstrap credentials that must never be imported",
+    "contains a generated migrated database dump that must not be imported",
+    "contains a raw legacy database backup that must not be committed as recovery payload"
+  ],
+  "sanitization_requirements": [
+    "make filesystem paths repository-relative",
+    "require bootstrap credentials from environment only",
+    "use a redacted catalog fixture for migration tests",
+    "exclude raw backups and generated migrated database dumps",
+    "add a production seeder that creates no privileged user or provider secret"
+  ],
+  "sanitized_validation": {
+    "pytest_passed": 54,
+    "pytest_failed": 0,
+    "validated_offline": true,
+    "import_committed": false
+  },
+  "next_action": "commit the sanitized backend source tree as reviewed text files, then rerun Backend production safety gate"
+}

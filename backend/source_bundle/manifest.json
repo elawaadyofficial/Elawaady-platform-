@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "state": "incomplete_reference_only",
+  "expected_parts": 8,
+  "present_parts": ["part01.b64"],
+  "missing_parts": ["part02.b64", "part03.b64", "part04.b64", "part05.b64", "part06.b64", "part07.b64", "part08.b64"],
+  "origin_commit": "faadc3d99de9a61ae01aa354a62b94ebae47b8fe",
+  "origin_commit_message": "build: add backend source bundle chunk 1/8",
+  "reference_only": true
+}

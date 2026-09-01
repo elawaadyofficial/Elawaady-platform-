@@ -1,71 +1,61 @@
-name: Bootstrap reviewed backend source
+name: Backend source recovery audit
 
 on:
   push:
+    branches:
+      - chatgpt/store-build
     paths:
       - '.github/workflows/bootstrap-backend.yml'
+      - 'backend/source_recovery_audit.json'
+      - 'backend/source_bundle/**'
+      - 'backend/source_bundle_inspect.py'
+  pull_request:
+    paths:
+      - '.github/workflows/bootstrap-backend.yml'
+      - 'backend/source_recovery_audit.json'
+      - 'backend/source_bundle/**'
+      - 'backend/source_bundle_inspect.py'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  bootstrap:
+  audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout working branch
+      - name: Checkout candidate without persisted credentials
         uses: actions/checkout@v4
         with:
-          ref: chatgpt/store-build
-          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Download reviewed Gemini bundle
+      - name: Validate recovery audit contract
         run: |
-          python -m pip install --upgrade pip gdown
-          gdown 1D_b0bQRLZTF0uWyNku-QlJVa2mW6k5J7 -O /tmp/elawaady-backend.zip
-          test -s /tmp/elawaady-backend.zip
+          python - <<'PY'
+          import json
+          from pathlib import Path
 
-      - name: Extract reviewed backend into repository
-        run: |
-          rm -rf /tmp/elawaady-backend
-          mkdir -p /tmp/elawaady-backend
-          unzip -q /tmp/elawaady-backend.zip -d /tmp/elawaady-backend
-          mkdir -p backend
-          rsync -a --delete /tmp/elawaady-backend/src/ backend/src/
-          rsync -a --delete /tmp/elawaady-backend/database/ backend/database/
-          rsync -a --delete /tmp/elawaady-backend/tests/ backend/tests/
-          cp /tmp/elawaady-backend/wsgi.py backend/wsgi.py
-          cp /tmp/elawaady-backend/requirements.txt backend/requirements.txt
-          find backend -type d -name '__pycache__' -prune -exec rm -rf {} +
-          find backend -type f -name '*.pyc' -delete
-          rm -f backend/database/platform_migrated.sql
+          audit = json.loads(Path('backend/source_recovery_audit.json').read_text(encoding='utf-8'))
+          assert audit['production_deploy_allowed'] is False
+          assert audit['raw_source_import_allowed'] is False
+          assert audit['review_state'] == 'sanitization_required_before_import'
+          assert len(audit['reviewed_source']['sha256']) == 64
+          assert audit['reviewed_source']['drive_file_id']
+          assert audit['sanitized_validation']['pytest_passed'] == 54
+          PY
 
-      - name: Apply production-safe files already reviewed in branch
+      - name: Prove historical recovery bundle remains incomplete
         run: |
-          test -f backend/passenger_wsgi.py
-          test -f backend/init_db.py
-          test -f backend/production_check.py
-          test -f backend/.env.example
+          set +e
+          output=$(python backend/source_bundle_inspect.py 2>&1)
+          status=$?
+          set -e
+          test "$status" -ne 0
+          echo "$output"
+          echo "$output" | grep -q 'found 1/8 chunks'
+          echo "$output" | grep -q 'part08.b64'
 
-      - name: Install dependencies and run full tests
+      - name: Reject write or deployment capability in this audit workflow
         run: |
-          python -m pip install -r backend/requirements.txt pytest
-          cd backend
-          python -m pytest -q
-
-      - name: Commit extracted source only if tests pass
-        run: |
-          git config user.name 'Elawaady Build Bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git add backend/src backend/database backend/tests backend/wsgi.py backend/requirements.txt
-          if git diff --cached --quiet; then
-            echo 'No backend source changes to commit.'
-            exit 0
-          fi
-          git commit -m 'build: import reviewed backend source after 52-test gate'
-          git push origin HEAD:chatgpt/store-build
+          ! grep -qE 'contents:[[:space:]]*write|git push|rsync --delete|scp |ssh |gdown ' .github/workflows/bootstrap-backend.yml
