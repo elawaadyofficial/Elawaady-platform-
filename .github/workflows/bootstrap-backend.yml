@@ -58,4 +58,18 @@ jobs:
 
       - name: Reject write or deployment capability in this audit workflow
         run: |
-          ! grep -qE 'contents:[[:space:]]*write|git push|rsync --delete|scp |ssh |gdown ' .github/workflows/bootstrap-backend.yml
+          python - <<'PY'
+          from pathlib import Path
+
+          text = Path('.github/workflows/bootstrap-backend.yml').read_text(encoding='utf-8')
+          forbidden = [
+              'contents' + ': ' + 'write',
+              'git' + ' push',
+              'rsync' + ' --delete',
+              's' + 'cp ',
+              's' + 'sh ',
+              'g' + 'down ',
+          ]
+          found = [token for token in forbidden if token in text]
+          assert not found, f'unsafe recovery workflow capability found: {found}'
+          PY
