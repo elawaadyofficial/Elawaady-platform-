@@ -141,8 +141,8 @@ require_once __DIR__ . '/header.php';
                     <input type="checkbox" id="agree" name="agree" value="1" required
                            <?= !empty($_POST['agree']) ? 'checked' : '' ?>>
                     <label for="agree">
-                        أوافق على <a href="terms.php">شروط الاستخدام</a>
-                        و<a href="privacy.php">سياسة الخصوصية</a>
+                        أوافق على <a href="page.php?slug=terms">شروط الاستخدام</a>
+                        و<a href="page.php?slug=privacy">سياسة الخصوصية</a>
                     </label>
                 </div>
 

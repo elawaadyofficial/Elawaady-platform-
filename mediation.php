@@ -190,7 +190,7 @@ require_once __DIR__ . '/header.php';
             </article>
         <?php else: ?>
             <p class="account-note">
-                شروط الوساطة الكاملة متاحة في <a href="mediation-terms.php">صفحة الشروط</a>.
+                شروط الوساطة الكاملة متاحة في <a href="page.php?slug=mediation_terms">صفحة الشروط</a>.
             </p>
         <?php endif; ?>
     </div>

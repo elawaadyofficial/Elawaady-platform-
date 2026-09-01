@@ -264,6 +264,11 @@ function auth_register(array $input, string $accountType): int {
         throw $e;
     }
 
+    // Ticking the box is a legal record, not a UI state: what was accepted,
+    // by whom, from where and when. The row points at the exact policy version
+    // that was published at the time, which is why versions are never edited.
+    record_policy_acceptance($userId, ['terms', 'privacy']);
+
     audit_log('user', $userId, $name, 'account.registered', 'platform_users', $userId,
         $accountType === 'supplier' ? 'تسجيل حساب مورد بانتظار الاعتماد' : 'تسجيل حساب مستخدم');
 
@@ -650,5 +655,49 @@ function audit_log(
     } catch (mysqli_sql_exception $e) {
         // An audit write must never take a request down with it.
         error_log('[EXD audit] ' . $e->getMessage());
+    }
+}
+
+
+// ── Policy acceptance ───────────────────────────────────────────────────────
+
+/**
+ * Record that an account accepted the current version of some policies.
+ *
+ * The row references policy_versions, not policies, so the record survives a
+ * later rewording: what the person agreed to is still readable exactly as it
+ * was shown to them.
+ */
+function record_policy_acceptance(
+    int $userId,
+    array $policyKeys,
+    ?int $orderId = null,
+    ?int $mediationId = null
+): void {
+    global $conn;
+
+    if (!$policyKeys) {
+        return;
+    }
+
+    try {
+        $stmt = $conn->prepare(
+            'INSERT INTO policy_acceptances (policy_version_id, user_id, order_id, mediation_id, ip_address, user_agent)
+             SELECT p.current_version_id, ?, ?, ?, ?, ?
+               FROM policies p
+              WHERE p.policy_key = ? AND p.current_version_id IS NOT NULL'
+        );
+        $ip    = auth_client_ip();
+        $agent = auth_user_agent();
+
+        foreach ($policyKeys as $key) {
+            $key = (string) $key;
+            $stmt->bind_param('iiisss', $userId, $orderId, $mediationId, $ip, $agent, $key);
+            $stmt->execute();
+        }
+    } catch (mysqli_sql_exception $e) {
+        // Never fail the action that caused it; the audit log still records
+        // the registration itself.
+        error_log('[EXD policy] ' . $e->getMessage());
     }
 }
