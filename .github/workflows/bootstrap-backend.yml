@@ -7,14 +7,22 @@ on:
     paths:
       - '.github/workflows/bootstrap-backend.yml'
       - 'backend/source_recovery_audit.json'
+      - 'backend/source_admission_contract.py'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
+      - 'backend/src/**'
+      - 'backend/database/**'
+      - 'backend/tests/**'
   pull_request:
     paths:
       - '.github/workflows/bootstrap-backend.yml'
       - 'backend/source_recovery_audit.json'
+      - 'backend/source_admission_contract.py'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
+      - 'backend/src/**'
+      - 'backend/database/**'
+      - 'backend/tests/**'
   workflow_dispatch:
 
 permissions:
@@ -44,6 +52,9 @@ jobs:
           assert audit['reviewed_source']['drive_file_id']
           assert audit['sanitized_validation']['pytest_passed'] == 54
           PY
+
+      - name: Enforce sanitized source admission boundary
+        run: python backend/source_admission_contract.py
 
       - name: Prove historical recovery bundle remains incomplete
         run: |
