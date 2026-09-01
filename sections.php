@@ -178,7 +178,15 @@ function exd_plat_art(array $row): string {
         return '<img src="' . e($media) . '" alt="' . e((string) $row['name'])
              . '" loading="lazy" decoding="async">';
     }
+    // Every subcategory ships with a bullet in its icon column, which says
+    // nothing and reads as a blank box in fonts that lack the glyph. The first
+    // letter of the name at least identifies the row, so a bare bullet counts
+    // as no icon here.
     $icon = trim((string) ($row['icon'] ?? ''));
+    if ($icon === '•') {
+        $icon = '';
+    }
+
     return '<span class="exd-plat__mark">'
          . ($icon !== '' ? e($icon) : mb_substr(e((string) $row['name']), 0, 1)) . '</span>';
 }
