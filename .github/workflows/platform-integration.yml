@@ -71,6 +71,7 @@ jobs:
           while IFS= read -r -d '' file; do
             php -l "$file" > /dev/null || { echo "Lint failed: $file"; failed=1; }
           done < <(find . -name '*.php' -not -path './.git/*' -not -path './backend/*' -print0)
+          bash -n tests/checkout_browser_replay.sh || failed=1
           exit $failed
 
       - name: Install from an empty database
@@ -101,6 +102,9 @@ jobs:
 
       - name: Orders, pricing and the wallet ledger
         run: bash tests/order_flow.sh
+
+      - name: Real storefront checkout replay protection
+        run: BASE=http://127.0.0.1:8080 bash tests/checkout_browser_replay.sh
 
       - name: Supplier lifecycle and mediation
         run: bash tests/supplier_mediation_flow.sh
