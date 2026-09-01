@@ -1,7 +1,9 @@
 <?php
-require_once __DIR__.'/auth.php'; require_once __DIR__.'/../db_connect.php'; require_once __DIR__.'/../provider_client.php';
+require_once __DIR__.'/auth.php'; require_once __DIR__ . '/_helpers.php';
+admin_require('providers.manage');
+require_once __DIR__.'/../db_connect.php'; require_once __DIR__.'/../provider_client.php';
 $msg=''; $err='';
-if($_SERVER['REQUEST_METHOD']==='POST'){
+if($_SERVER['REQUEST_METHOD']==='POST'){ csrf_require();
  $act=$_POST['act']??'';
  try{
   if($act==='save'){
@@ -18,6 +20,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $providers=fetch_all($conn,'SELECT id,name,api_url,currency,is_active,last_balance,last_sync_at FROM service_providers ORDER BY id DESC');
 $page_title_admin='مزودو API / السيرفرات'; include __DIR__.'/layout.php'; ?>
 <?php if($msg):?><div class="alert alert-success"><?= e($msg) ?></div><?php endif;?><?php if($err):?><div class="alert alert-error"><?= e($err) ?></div><?php endif;?>
-<div class="panel"><div class="panel-header"><div class="panel-title">🔌 إضافة / تعديل سيرفر SMM</div></div><form method="post" class="form-grid" style="padding:16px"><input type="hidden" name="act" value="save"><input class="form-input" name="name" placeholder="اسم السيرفر" required><input class="form-input" name="api_url" dir="ltr" placeholder="https://server.example/api/v2" required><input class="form-input" name="api_key" dir="ltr" type="password" placeholder="API Key — يتم تشفيره قبل التخزين"><input class="form-input" name="currency" value="USD" placeholder="USD"><button class="btn btn-primary">حفظ المزود</button></form></div>
-<div class="panel" style="margin-top:16px"><table class="admin-table"><thead><tr><th>المزود</th><th>API</th><th>العملة</th><th>فحص</th></tr></thead><tbody><?php foreach($providers as $p):?><tr><td><?= e($p['name']) ?></td><td dir="ltr"><?= e($p['api_url']) ?></td><td><?= e($p['currency']) ?></td><td><form method="post"><input type="hidden" name="act" value="balance"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>"><button class="btn btn-secondary btn-sm">فحص الرصيد</button></form></td></tr><?php endforeach;?></tbody></table></div>
+<div class="panel"><div class="panel-header"><div class="panel-title">🔌 إضافة / تعديل سيرفر SMM</div></div><form method="post" class="form-grid" style="padding:16px">
+<?= csrf_field() ?><input type="hidden" name="act" value="save"><input class="form-input" name="name" placeholder="اسم السيرفر" required><input class="form-input" name="api_url" dir="ltr" placeholder="https://server.example/api/v2" required><input class="form-input" name="api_key" dir="ltr" type="password" placeholder="API Key — يتم تشفيره قبل التخزين"><input class="form-input" name="currency" value="USD" placeholder="USD"><button class="btn btn-primary">حفظ المزود</button></form></div>
+<div class="panel" style="margin-top:16px"><table class="admin-table"><thead><tr><th>المزود</th><th>API</th><th>العملة</th><th>فحص</th></tr></thead><tbody><?php foreach($providers as $p):?><tr><td><?= e($p['name']) ?></td><td dir="ltr"><?= e($p['api_url']) ?></td><td><?= e($p['currency']) ?></td><td><form method="post">
+<?= csrf_field() ?><input type="hidden" name="act" value="balance"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>"><button class="btn btn-secondary btn-sm">فحص الرصيد</button></form></td></tr><?php endforeach;?></tbody></table></div>
 </div></div></div></body></html>

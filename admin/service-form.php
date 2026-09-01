@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('catalog.manage');
 require_once __DIR__ . '/../db_connect.php';
 
 $id      = (int)($_GET['id'] ?? 0);
@@ -58,6 +60,7 @@ if ($is_edit) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     // Collect all fields
     $f = [];
     $str_fields = [
@@ -234,6 +237,7 @@ $MED_TYPES = ['none'=>'لا يوجد','sell'=>'بيع','buy'=>'شراء','owners
 <?php endif; ?>
 
 <form method="POST" id="svc-form" enctype="multipart/form-data">
+<?= csrf_field() ?>
 
 <!-- ── 1. BASIC INFO ─────────────────────────────────────── -->
 <details class="form-section" open>

@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('cms.manage');
 require_once __DIR__ . '/../db_connect.php';
 $page_title_admin = 'معرفة الشات بوت';
 
@@ -26,6 +28,7 @@ if (isset($_GET['toggle']) && ctype_digit($_GET['toggle'])) {
 
 // ── POST: add or edit ────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $pid       = (int)($_POST['id']       ?? 0);
     $question  = mb_substr(trim($_POST['question']  ?? ''), 0, 1000);
     $answer    = mb_substr(trim($_POST['answer']    ?? ''), 0, 5000);
@@ -170,6 +173,7 @@ include __DIR__ . '/layout.php';
       <div class="panel-title"><?= $edit_row ? '✏️ تعديل السؤال' : '➕ إضافة سؤال جديد' ?></div>
     </div>
     <form method="post" style="display:flex; flex-direction:column; gap:14px;">
+<?= csrf_field() ?>
       <?php if ($edit_row): ?>
         <input type="hidden" name="id" value="<?= (int)$edit_row['id'] ?>">
       <?php endif; ?>

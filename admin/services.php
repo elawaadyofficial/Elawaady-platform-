@@ -1,10 +1,13 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('catalog.manage');
 require_once __DIR__ . '/../db_connect.php';
 $page_title_admin = 'إدارة الخدمات';
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    csrf_require();
     $id = (int)($_POST['id'] ?? 0);
     if ($_POST['action'] === 'toggle') {
         $conn->query("UPDATE store_services SET is_active = NOT is_active WHERE id=$id");
@@ -143,6 +146,7 @@ include __DIR__ . '/layout.php';
           <div class="flex-gap">
             <a href="service-form.php?id=<?= $s['id'] ?>" class="btn btn-secondary btn-sm">تعديل</a>
             <form method="POST" style="display:inline;">
+<?= csrf_field() ?>
               <input type="hidden" name="action" value="toggle">
               <input type="hidden" name="id" value="<?= $s['id'] ?>">
               <button type="submit" class="btn btn-secondary btn-sm">
@@ -151,6 +155,7 @@ include __DIR__ . '/layout.php';
             </form>
             <form method="POST" style="display:inline;"
                   onsubmit="return confirm('هل تريد حذف هذه الخدمة نهائيًا؟');">
+<?= csrf_field() ?>
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="id" value="<?= $s['id'] ?>">
               <button type="submit" class="btn btn-danger btn-sm">حذف</button>

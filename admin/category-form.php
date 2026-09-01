@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('catalog.manage');
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/upload_handler.php';
 
@@ -29,6 +31,7 @@ $errors  = [];
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $name        = trim($_POST['name'] ?? '');
     $name_en     = trim($_POST['name_en'] ?? '');
     $slug        = trim($_POST['slug'] ?? '');
@@ -156,6 +159,7 @@ function cat_img_field(string $label, string $file_key, string $current_path, st
   </div>
 
   <form method="POST" enctype="multipart/form-data">
+<?= csrf_field() ?>
     <div class="form-grid">
 
       <div class="form-group">

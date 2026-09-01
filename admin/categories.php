@@ -1,10 +1,13 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('catalog.manage');
 require_once __DIR__ . '/../db_connect.php';
 $page_title_admin = 'إدارة الأقسام';
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    csrf_require();
     $id   = (int)($_POST['id'] ?? 0);
     $type = $_POST['type'] ?? 'main'; // main | sub
 
@@ -76,6 +79,7 @@ include __DIR__ . '/layout.php';
           <div class="flex-gap">
             <a href="category-form.php?type=main&id=<?= $c['id'] ?>" class="btn btn-secondary btn-sm">تعديل</a>
             <form method="POST" style="display:inline;">
+<?= csrf_field() ?>
               <input type="hidden" name="action" value="toggle">
               <input type="hidden" name="type"   value="main">
               <input type="hidden" name="id"     value="<?= $c['id'] ?>">
@@ -85,6 +89,7 @@ include __DIR__ . '/layout.php';
             </form>
             <form method="POST" style="display:inline;"
                   onsubmit="return confirm('هل تريد حذف هذا القسم وكل أقسامه الفرعية؟');">
+<?= csrf_field() ?>
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="type"   value="main">
               <input type="hidden" name="id"     value="<?= $c['id'] ?>">
@@ -140,6 +145,7 @@ include __DIR__ . '/layout.php';
           <div class="flex-gap">
             <a href="category-form.php?type=sub&id=<?= $s['id'] ?>" class="btn btn-secondary btn-sm">تعديل</a>
             <form method="POST" style="display:inline;">
+<?= csrf_field() ?>
               <input type="hidden" name="action" value="toggle">
               <input type="hidden" name="type"   value="sub">
               <input type="hidden" name="id"     value="<?= $s['id'] ?>">
@@ -149,6 +155,7 @@ include __DIR__ . '/layout.php';
             </form>
             <form method="POST" style="display:inline;"
                   onsubmit="return confirm('هل تريد حذف هذا القسم الفرعي؟');">
+<?= csrf_field() ?>
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="type"   value="sub">
               <input type="hidden" name="id"     value="<?= $s['id'] ?>">

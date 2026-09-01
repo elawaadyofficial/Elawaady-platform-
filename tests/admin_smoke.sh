@@ -126,6 +126,47 @@ if [ -n "$SUPPORT_PASS" ]; then
                       || bad 'a role without users.manage cannot suspend an account' "got $CODE"
 fi
 
+head1 'Every write is guarded'
+
+# A POST without a token must be refused on every page that changes something,
+# not only the ones written most recently.
+for page in users.php suppliers.php supplier-offers.php staff.php wallets.php \
+            payments.php mediation.php digital-assets.php homepage-sections.php \
+            placements.php pages.php settings.php brand-settings.php \
+            categories.php services.php carousel.php chatbot-knowledge.php \
+            providers.php order-view.php; do
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -X POST -d "action=probe" "$BASE/admin/$page")
+  if [ "$CODE" = "419" ]; then
+    PASS=$((PASS+1))
+  else
+    bad "$page refuses a POST with no CSRF token" "got $CODE"
+  fi
+done
+ok 'every dashboard page refuses a POST with no CSRF token'
+
+if [ -n "$SUPPORT_PASS" ]; then
+  # A support agent holds orders.view but not catalog.manage, so the catalogue
+  # pages must refuse them — the ported pages included.
+  rm -f "$JAR2"; touch "$JAR2"
+  sign_in "$JAR2" "$SUPPORT_USER" "$SUPPORT_PASS"
+
+  REFUSED=0
+  for page in categories.php services.php service-form.php carousel.php \
+              providers.php provider-services.php chatbot-knowledge.php; do
+    CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR2" "$BASE/admin/$page")
+    [ "$CODE" = "403" ] && REFUSED=$((REFUSED+1)) || bad "$page refuses a role without the permission" "got $CODE"
+  done
+  [ "$REFUSED" = "7" ] && ok 'the catalogue and provider pages refuse a role without the permission' \
+                       || bad 'the catalogue and provider pages refuse a role without the permission'
+
+  # And the pages that role does hold still open.
+  check_page "$JAR2" /admin/orders.php 200 '' 'a support agent still reaches orders'
+
+  # Re-sign the super admin for the sign-out check that follows.
+  rm -f "$JAR"; touch "$JAR"
+  sign_in "$JAR" "$ADMIN_USER" "$ADMIN_PASS"
+fi
+
 head1 'Sign out'
 
 TOKEN="$(csrf "$JAR" "$BASE/admin/logout.php")"

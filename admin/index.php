@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 
 $page_title_admin = 'لوحة التحكم';
 

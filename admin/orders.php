@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('orders.view');
+
 $page_title_admin = 'الطلبات';
 
 // Filters

@@ -1,294 +1,570 @@
 <?php
 require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../provider_client.php';
+admin_require('orders.view');
 
-$id = (int)($_GET['id'] ?? 0);
-if (!$id) { header('Location: orders.php'); exit; }
+/**
+ * One order, and everything that may be done to it.
+ *
+ * Every write here checks the CSRF token and a permission, and every status
+ * change goes through admin_order_can_move() — the workflow graph is declared
+ * once in _helpers.php and no page may invent a transition. Each change writes
+ * a row in order_status_history saying who made it and whether the customer
+ * may see it, so the timeline the customer reads and the record staff audit
+ * are the same data.
+ */
 
-$order = fetch_one($conn,
-    "SELECT o.*, s.whatsapp_number, s.price AS svc_price, s.currency AS svc_currency
-     FROM orders o
-     LEFT JOIN store_services s ON s.id = o.service_id
-     WHERE o.id = ?",
-    "i", $id);
-if (!$order) { header('Location: orders.php'); exit; }
-
-$errors   = [];
-$success  = '';
-$currency = $order['svc_currency'] ?: 'ج.م';
-
-// Handle POST actions
+// The token is checked before anything else on a POST, including before the
+// page decides there is nothing to act on. A guard that runs after an early
+// return is a guard with a gap in it.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $act = trim($_POST['act'] ?? '');
-
-    if ($act === 'save_notes') {
-        $admin_notes = mb_substr(trim($_POST['admin_notes'] ?? ''), 0, 5000);
-        $stmt = $conn->prepare("UPDATE orders SET admin_notes=? WHERE id=?");
-        $stmt->bind_param("si", $admin_notes, $id);
-        $stmt->execute();
-        $success = 'تم حفظ الملاحظات.';
-        $order['admin_notes'] = $admin_notes;
-    }
-
-    elseif ($act === 'set_status') {
-        $allowed = ['new','waiting_approval','waiting_payment','in_progress','progressing','completed','rejected','on_hold','cancelled','dispute'];
-        $new_status = trim($_POST['order_status'] ?? '');
-        if (in_array($new_status, $allowed, true)) {
-            $stmt = $conn->prepare("UPDATE orders SET order_status=? WHERE id=?");
-            $stmt->bind_param("si", $new_status, $id);
-            $stmt->execute();
-            $success = 'تم تحديث حالة الطلب.';
-            $order['order_status'] = $new_status;
-        }
-    }
-
-    elseif ($act === 'set_progress') {
-        $done=max(0,(int)($_POST['completed_quantity']??0)); $total=max(1,(int)$order['quantity']); $done=min($done,$total); $remaining=$total-$done; $pct=round(($done/$total)*100,2);
-        $st=$conn->prepare("UPDATE orders SET completed_quantity=?,remaining_quantity=?,progress_percent=?,order_status=IF(? >= quantity,'completed','progressing') WHERE id=?");
-        $st->bind_param('iidii',$done,$remaining,$pct,$done,$id); $st->execute(); $success='تم تحديث تقدم الطلب.';
-    }
-
-
-    elseif ($act === 'send_provider') {
-        if (empty($order['provider_id']) || empty($order['target_url'])) { $errors[]='لا يوجد مزود API أو رابط هدف لهذا الأوردر.'; }
-        elseif (!empty($order['provider_order_id'])) { $errors[]='تم إرسال الأوردر للمزود بالفعل.'; }
-        else {
-            $svc=fetch_one($conn,'SELECT provider_service_id FROM store_services WHERE id=?','i',$order['service_id']); $pv=provider_get((int)$order['provider_id']);
-            if(!$pv||empty($svc['provider_service_id'])) $errors[]='إعدادات المزود أو Service ID ناقصة.';
-            else { try { $r=provider_add_order($pv,(string)$svc['provider_service_id'],$order['target_url'],(int)$order['quantity']); $po=(string)($r['order']??''); if(!$po) throw new RuntimeException($r['error']??'لم يرجع المزود رقم أوردر'); $st=$conn->prepare("UPDATE orders SET provider_order_id=?,provider_status='Pending',order_status='in_progress' WHERE id=?");$st->bind_param('si',$po,$id);$st->execute();$success='تم إرسال الأوردر للسيرفر. Provider Order: '.$po; } catch(Throwable $e){$errors[]=$e->getMessage();} }
-        }
-    }
-    elseif ($act === 'sync_provider') {
-        if(empty($order['provider_id'])||empty($order['provider_order_id'])) $errors[]='الأوردر غير مربوط بأوردر على السيرفر.';
-        else { try { $pv=provider_get((int)$order['provider_id']); $r=provider_order_status($pv,(string)$order['provider_order_id']); $ps=(string)($r['status']??'Unknown'); $rem=isset($r['remains'])?max(0,(int)$r['remains']):max(0,(int)$order['remaining_quantity']); $total=max(1,(int)$order['quantity']); $done=max(0,$total-$rem); $pct=round($done/$total*100,2); $map=['Completed'=>'completed','In progress'=>'progressing','Processing'=>'in_progress','Pending'=>'in_progress','Canceled'=>'cancelled','Partial'=>'progressing']; $os=$map[$ps]??$order['order_status']; $st=$conn->prepare('UPDATE orders SET provider_status=?,remaining_quantity=?,completed_quantity=?,progress_percent=?,order_status=?,last_provider_sync_at=NOW() WHERE id=?');$st->bind_param('siidsi',$ps,$rem,$done,$pct,$os,$id);$st->execute();$success='تمت مزامنة حالة الأوردر من السيرفر.'; } catch(Throwable $e){$errors[]=$e->getMessage();} }
-    }
-    elseif ($act === 'set_payment') {
-        $allowed_pay = ['pending','paid','failed','refunded'];
-        $new_pay = trim($_POST['payment_status'] ?? '');
-        if (in_array($new_pay, $allowed_pay, true)) {
-            $stmt = $conn->prepare("UPDATE orders SET payment_status=? WHERE id=?");
-            $stmt->bind_param("si", $new_pay, $id);
-            $stmt->execute();
-            $success = 'تم تحديث حالة الدفع.';
-            $order['payment_status'] = $new_pay;
-        }
-    }
-
-    elseif ($act === 'convert_mediation') {
-        $stmt = $conn->prepare("UPDATE orders SET order_type='mediation', mediation_enabled=1 WHERE id=?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $success = 'تم تحويل الطلب إلى وساطة.';
-        $order['order_type']        = 'mediation';
-        $order['mediation_enabled'] = 1;
-    }
-
-    if ($success) {
-        header("Location: order-view.php?id=$id&saved=1");
-        exit;
-    }
+    csrf_require();
 }
 
-if (isset($_GET['saved'])) $success = 'تم الحفظ بنجاح.';
+$id = admin_id('id');
+if ($id === 0) {
+    admin_redirect('orders.php');
+}
 
-$page_title_admin = 'تفاصيل الطلب: ' . $order['order_code'];
+/** Load the order fresh — after a write as well as before one. */
+function load_order($conn, int $id): ?array {
+    return fetch_one($conn, "
+        SELECT o.*, s.whatsapp_number, s.currency AS svc_currency,
+               s.order_receiver, s.execution_method, s.source_type,
+               u.name AS account_name, u.email AS account_email,
+               sup.name AS supplier_account_name
+          FROM orders o
+          LEFT JOIN store_services s   ON s.id  = o.service_id
+          LEFT JOIN platform_users u   ON u.id  = o.user_id
+          LEFT JOIN platform_users sup ON sup.id = o.supplier_id
+         WHERE o.id = ?", 'i', $id);
+}
 
-$status_labels = [
-    'new'               => ['جديد',            'badge-active'],
-    'waiting_approval'  => ['انتظار موافقة',    'badge-review'],
-    'waiting_payment'   => ['انتظار الدفع',     'badge-review'],
-    'in_progress'       => ['قيد التنفيذ',      'badge-active'],
-    'progressing'       => ['جاري التقدم',      'badge-active'],
-    'completed'         => ['اكتمال الأوردر',    'badge-active'],
-    'rejected'          => ['مرفوض',            'badge-inactive'],
-    'on_hold'           => ['معلق',             'badge-review'],
-    'cancelled'         => ['ملغي',             'badge-inactive'],
-    'dispute'           => ['نزاع',             'badge-hidden'],
-];
-$pay_labels = [
-    'pending'  => ['pending',  'badge-review'],
-    'paid'     => ['مدفوع',   'badge-active'],
-    'failed'   => ['فاشل',    'badge-inactive'],
-    'refunded' => ['مسترد',   'badge-hidden'],
-];
+$order = load_order($conn, $id);
+if ($order === null) {
+    admin_flash('error', 'الطلب غير موجود.');
+    admin_redirect('orders.php');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action  = (string) ($_POST['action'] ?? '');
+    $admin   = admin_user();
+    $adminId = (int) $admin['id'];
+
+    if ($action === 'set_status') {
+        admin_require('orders.manage');
+
+        $from = (string) $order['order_status'];
+        $to   = (string) ($_POST['to_status'] ?? '');
+        $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 500);
+        $visible = empty($_POST['internal']) ? 1 : 0;
+
+        if (!admin_order_can_move($from, $to)) {
+            admin_flash('error', 'لا يمكن الانتقال من «' . admin_order_status_label($from)
+                . '» إلى «' . admin_order_status_label($to) . '».');
+            admin_redirect('order-view.php?id=' . $id);
+        }
+
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare('UPDATE orders SET order_status = ? WHERE id = ?');
+            $stmt->bind_param('si', $to, $id);
+            $stmt->execute();
+
+            $hist = $conn->prepare(
+                'INSERT INTO order_status_history
+                    (order_id, from_status, to_status, actor_type, actor_id, note, customer_visible)
+                 VALUES (?, ?, ?, "admin", ?, ?, ?)'
+            );
+            $hist->bind_param('issisi', $id, $from, $to, $adminId, $note, $visible);
+            $hist->execute();
+
+            $conn->commit();
+        } catch (mysqli_sql_exception $e) {
+            $conn->rollback();
+            admin_flash('error', 'تعذّر تحديث الحالة.');
+            admin_redirect('order-view.php?id=' . $id);
+        }
+
+        // A refund returns the money the same way it arrived: through the ledger.
+        if ($to === 'refunded' && $order['user_id'] !== null && (float) $order['total_price'] > 0
+            && $order['payment_status'] === 'paid') {
+            try {
+                wallet_post((int) $order['user_id'], 'credit', (float) $order['total_price'],
+                    'order_refund', $id, 'استرداد الطلب ' . (string) $order['order_code'], 'admin', $adminId);
+
+                $pay = $conn->prepare("UPDATE orders SET payment_status = 'refunded' WHERE id = ?");
+                $pay->bind_param('i', $id);
+                $pay->execute();
+
+                admin_flash('success', 'تم رد المبلغ إلى محفظة العميل.');
+            } catch (Throwable $e) {
+                admin_flash('error', 'تم تغيير الحالة لكن تعذّر رد المبلغ: ' . $e->getMessage());
+            }
+        }
+
+        if ($order['user_id'] !== null && $visible === 1) {
+            notify_user((int) $order['user_id'], 'تحديث على طلبك',
+                (string) $order['order_code'] . ' — ' . admin_order_status_label($to),
+                'info', 'order-track.php?code=' . urlencode((string) $order['order_code']));
+        }
+
+        admin_audit('order.status_changed', 'orders', $id,
+            (string) $order['order_code'] . ': ' . $from . ' → ' . $to, $note);
+        admin_flash('success', 'تم تحديث حالة الطلب.');
+
+    } elseif ($action === 'save_notes') {
+        admin_require('orders.manage');
+        $notes = mb_substr(trim((string) ($_POST['admin_notes'] ?? '')), 0, 5000);
+        $stmt  = $conn->prepare('UPDATE orders SET admin_notes = ? WHERE id = ?');
+        $stmt->bind_param('si', $notes, $id);
+        $stmt->execute();
+        admin_audit('order.notes_saved', 'orders', $id, (string) $order['order_code']);
+        admin_flash('success', 'تم حفظ الملاحظات.');
+
+    } elseif ($action === 'confirm_payment') {
+        admin_require('payments.confirm');
+
+        if ($order['payment_status'] === 'paid') {
+            admin_flash('error', 'هذا الطلب مدفوع بالفعل.');
+            admin_redirect('order-view.php?id=' . $id);
+        }
+
+        $amount    = round((float) ($_POST['amount'] ?? $order['total_price']), 2);
+        $method    = mb_substr(trim((string) ($_POST['method'] ?? '')), 0, 100);
+        $reference = mb_substr(trim((string) ($_POST['reference'] ?? '')), 0, 190);
+
+        if ($amount <= 0) {
+            admin_flash('error', 'المبلغ غير صحيح.');
+            admin_redirect('order-view.php?id=' . $id);
+        }
+
+        $from = (string) $order['order_status'];
+        $to   = admin_order_can_move($from, 'paid') ? 'paid' : $from;
+
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare(
+                "UPDATE orders
+                    SET payment_status = 'paid', order_status = ?,
+                        payment_confirmed_by = ?, payment_confirmed_at = NOW(),
+                        payment_confirmed_amount = ?, payment_method_recorded = ?,
+                        payment_reference = ?
+                  WHERE id = ? AND payment_status <> 'paid'"
+            );
+            $stmt->bind_param('sidssi', $to, $adminId, $amount, $method, $reference, $id);
+            $stmt->execute();
+
+            if ($stmt->affected_rows === 0) {
+                throw new RuntimeException('تم تأكيد الدفع بالفعل.');
+            }
+
+            $hist = $conn->prepare(
+                'INSERT INTO order_status_history
+                    (order_id, from_status, to_status, actor_type, actor_id, note, customer_visible)
+                 VALUES (?, ?, ?, "admin", ?, ?, 1)'
+            );
+            $note = 'تأكيد دفعة ' . number_format($amount, 2);
+            $hist->bind_param('issis', $id, $from, $to, $adminId, $note);
+            $hist->execute();
+
+            $pay = $conn->prepare(
+                "INSERT INTO payments (order_id, user_id, method_key, amount, currency, status,
+                                       reference, reviewed_by, reviewed_at)
+                 VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?, NOW())"
+            );
+            $userId   = $order['user_id'] !== null ? (int) $order['user_id'] : null;
+            $currency = (string) $order['currency'];
+            $methodKey = $method !== '' ? $method : 'manual';
+            $pay->bind_param('iisdssi', $id, $userId, $methodKey, $amount, $currency, $reference, $adminId);
+            $pay->execute();
+
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            admin_flash('error', $e->getMessage());
+            admin_redirect('order-view.php?id=' . $id);
+        }
+
+        if ($order['user_id'] !== null) {
+            notify_user((int) $order['user_id'], 'تم تأكيد الدفع',
+                (string) $order['order_code'], 'success',
+                'order-track.php?code=' . urlencode((string) $order['order_code']));
+        }
+
+        admin_audit('order.payment_confirmed', 'orders', $id,
+            (string) $order['order_code'] . ' — ' . number_format($amount, 2), $reference);
+        admin_flash('success', 'تم تأكيد الدفع.');
+
+    } elseif ($action === 'assign_supplier') {
+        admin_require('orders.manage');
+        $supplierId = max(0, (int) ($_POST['supplier_id'] ?? 0)) ?: null;
+
+        if ($supplierId !== null) {
+            $supplier = fetch_one($conn,
+                "SELECT id, name FROM platform_users WHERE id = ? AND account_type = 'supplier' AND status = 'active'",
+                'i', $supplierId);
+            if ($supplier === null) {
+                admin_flash('error', 'المورد غير موجود أو غير معتمد.');
+                admin_redirect('order-view.php?id=' . $id);
+            }
+        }
+
+        $stmt = $conn->prepare('UPDATE orders SET supplier_id = ? WHERE id = ?');
+        $stmt->bind_param('ii', $supplierId, $id);
+        $stmt->execute();
+
+        if ($supplierId !== null) {
+            notify_user($supplierId, 'طلب جديد موجَّه إليك',
+                (string) $order['order_code'] . ' — ' . (string) $order['service_name'],
+                'info', 'supplier-dashboard.php?tab=orders');
+        }
+
+        admin_audit('order.supplier_assigned', 'orders', $id, (string) $order['order_code']);
+        admin_flash('success', $supplierId !== null ? 'تم إسناد الطلب للمورد.' : 'تم إلغاء الإسناد.');
+
+    } elseif ($action === 'provider_send') {
+        admin_require('providers.manage');
+        try {
+            $service = fetch_one($conn,
+                'SELECT provider_id, provider_service_id FROM store_services WHERE id = ?',
+                'i', (int) $order['service_id']);
+
+            if ($service === null || (int) $service['provider_id'] === 0) {
+                throw new RuntimeException('هذه الخدمة غير مربوطة بمزود.');
+            }
+            if (trim((string) $order['target_url']) === '') {
+                throw new RuntimeException('لا يوجد رابط هدف على هذا الطلب.');
+            }
+
+            $provider = provider_get((int) $service['provider_id']);
+            if ($provider === null) {
+                throw new RuntimeException('المزود غير متاح.');
+            }
+
+            $result = provider_add_order($provider, (string) $service['provider_service_id'],
+                (string) $order['target_url'], (int) $order['quantity']);
+            $remote = (string) ($result['order'] ?? '');
+            if ($remote === '') {
+                throw new RuntimeException((string) ($result['error'] ?? 'لم يرجع المزود رقم طلب.'));
+            }
+
+            $stmt = $conn->prepare(
+                "UPDATE orders SET provider_order_id = ?, provider_status = 'Pending', order_status = 'in_progress'
+                  WHERE id = ?"
+            );
+            $stmt->bind_param('si', $remote, $id);
+            $stmt->execute();
+
+            admin_audit('order.sent_to_provider', 'orders', $id, (string) $order['order_code'], $remote);
+            admin_flash('success', 'تم إرسال الطلب للمزود. رقم الطلب لديه: ' . $remote);
+        } catch (Throwable $e) {
+            admin_flash('error', $e->getMessage());
+        }
+
+    } elseif ($action === 'provider_sync') {
+        admin_require('providers.manage');
+        try {
+            if ((int) $order['provider_id'] === 0 || trim((string) $order['provider_order_id']) === '') {
+                throw new RuntimeException('لا يوجد طلب لدى مزود لمزامنته.');
+            }
+
+            $provider = provider_get((int) $order['provider_id']);
+            if ($provider === null) {
+                throw new RuntimeException('المزود غير متاح.');
+            }
+
+            $result    = provider_order_status($provider, (string) $order['provider_order_id']);
+            $remoteRaw = (string) ($result['status'] ?? 'Unknown');
+            $quantity  = max(1, (int) $order['quantity']);
+            $remaining = isset($result['remains'])
+                ? max(0, (int) $result['remains'])
+                : max(0, (int) $order['remaining_quantity']);
+            $done    = max(0, $quantity - $remaining);
+            $percent = round($done / $quantity * 100, 2);
+
+            $map = [
+                'Completed'   => 'completed',
+                'In progress' => 'in_progress',
+                'Processing'  => 'in_progress',
+                'Pending'     => 'in_progress',
+                'Partial'     => 'in_progress',
+                'Canceled'    => 'cancelled',
+            ];
+            $mapped = $map[$remoteRaw] ?? (string) $order['order_status'];
+            // Even a provider cannot push the order through a transition the
+            // workflow forbids.
+            $next = admin_order_can_move((string) $order['order_status'], $mapped)
+                ? $mapped
+                : (string) $order['order_status'];
+
+            $stmt = $conn->prepare(
+                'UPDATE orders
+                    SET provider_status = ?, remaining_quantity = ?, completed_quantity = ?,
+                        progress_percent = ?, order_status = ?, last_provider_sync_at = NOW()
+                  WHERE id = ?'
+            );
+            $stmt->bind_param('siidsi', $remoteRaw, $remaining, $done, $percent, $next, $id);
+            $stmt->execute();
+
+            admin_audit('order.provider_synced', 'orders', $id, (string) $order['order_code'], $remoteRaw);
+            admin_flash('success', 'تمت مزامنة حالة الطلب من المزود.');
+        } catch (Throwable $e) {
+            admin_flash('error', $e->getMessage());
+        }
+    }
+
+    admin_redirect('order-view.php?id=' . $id);
+}
+
+$page_title_admin = 'طلب ' . (string) $order['order_code'];
+
+$timeline = fetch_all(
+    $conn,
+    'SELECT h.from_status, h.to_status, h.actor_type, h.note, h.customer_visible, h.created_at,
+            a.username AS admin_name
+       FROM order_status_history h
+       LEFT JOIN admin_users a ON a.id = h.actor_id AND h.actor_type = "admin"
+      WHERE h.order_id = ? ORDER BY h.id',
+    'i',
+    $id
+);
+
+$options  = fetch_all($conn, 'SELECT option_label, value_label, price_delta FROM order_options WHERE order_id = ?', 'i', $id);
+$payments = fetch_all($conn, 'SELECT method_key, amount, currency, status, reference, created_at FROM payments WHERE order_id = ? ORDER BY id DESC', 'i', $id);
+
+$suppliers = admin_can('orders.manage')
+    ? fetch_all($conn, "SELECT id, name FROM platform_users WHERE account_type='supplier' AND status='active' ORDER BY name LIMIT 100")
+    : [];
+
+$nextStatuses = admin_order_transitions()[(string) $order['order_status']] ?? [];
+$currency     = (string) ($order['currency'] ?: $order['svc_currency'] ?: 'EGP');
 
 include __DIR__ . '/layout.php';
 ?>
 
-<?php if ($errors): ?><div class="alert alert-error" style="margin-bottom:16px"><?= e(implode(' — ',$errors)) ?></div><?php endif; ?>
-<?php if ($success): ?>
-  <div class="alert alert-success" style="margin-bottom:16px;"><?= e($success) ?></div>
+<?= admin_flash_render() ?>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <?= e((string) $order['service_name']) ?>
+      <span class="text-muted" style="font-size:12px;" dir="ltr"><?= e((string) $order['order_code']) ?></span>
+    </div>
+    <?= admin_badge(admin_order_status_label((string) $order['order_status']),
+          admin_order_status_tone((string) $order['order_status'])) ?>
+  </div>
+
+  <div class="detail-grid">
+    <table class="kv">
+      <tr><td>الكمية</td><td><?= (int) $order['quantity'] ?></td></tr>
+      <tr><td>سعر الوحدة</td><td class="money"><?= e(number_format((float) $order['unit_price'], 2)) ?></td></tr>
+      <?php if ((float) $order['options_total'] > 0): ?>
+        <tr><td>إضافات</td><td class="money"><?= e(number_format((float) $order['options_total'], 2)) ?></td></tr>
+      <?php endif; ?>
+      <?php if ((float) $order['mediation_fee'] > 0): ?>
+        <tr><td>رسوم الوساطة</td><td class="money"><?= e(number_format((float) $order['mediation_fee'], 2)) ?></td></tr>
+      <?php endif; ?>
+      <tr><td>الإجمالي</td><td class="money text-gold"><?= e(number_format((float) $order['total_price'], 2)) ?> <?= e($currency) ?></td></tr>
+      <tr><td>حالة الدفع</td><td><?= e((string) $order['payment_status']) ?></td></tr>
+      <tr><td>مصدر الطلب</td><td><?= e((string) $order['order_source']) ?></td></tr>
+      <tr><td>تاريخ الطلب</td><td dir="ltr"><?= e(date('Y-m-d H:i', strtotime((string) $order['created_at']))) ?></td></tr>
+    </table>
+
+    <table class="kv">
+      <tr><td>الحساب</td><td><?= e((string) ($order['account_name'] ?? 'ضيف')) ?></td></tr>
+      <tr><td>الاسم</td><td><?= e((string) ($order['customer_name'] ?: '—')) ?></td></tr>
+      <tr><td>الهاتف</td><td dir="ltr"><?= e((string) ($order['customer_phone'] ?: '—')) ?></td></tr>
+      <tr><td>البريد</td><td dir="ltr"><?= e((string) ($order['customer_email'] ?: $order['account_email'] ?: '—')) ?></td></tr>
+      <?php if (!empty($order['target_url'])): ?>
+        <tr><td>الهدف</td><td dir="ltr" style="word-break:break-all;"><?= e((string) $order['target_url']) ?></td></tr>
+      <?php endif; ?>
+      <?php foreach ($options as $option): ?>
+        <tr><td><?= e((string) $option['option_label']) ?></td><td><?= e((string) $option['value_label']) ?></td></tr>
+      <?php endforeach; ?>
+      <?php if (!empty($order['customer_notes'])): ?>
+        <tr><td>ملاحظات العميل</td><td style="white-space:normal;"><?= nl2br(e((string) $order['customer_notes'])) ?></td></tr>
+      <?php endif; ?>
+    </table>
+  </div>
+</div>
+
+<?php if (admin_can('orders.manage')): ?>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">تغيير الحالة</div></div>
+
+    <?php if ($nextStatuses): ?>
+      <form method="post">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="set_status">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">الحالة التالية</label>
+            <select class="form-select" name="to_status">
+              <?php foreach ($nextStatuses as $next): ?>
+                <option value="<?= e($next) ?>"><?= e(admin_order_status_label($next)) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">ملاحظة</label>
+            <input class="form-input" type="text" name="note" placeholder="تظهر للعميل ما لم تحدّدها كداخلية">
+          </div>
+          <label class="form-check">
+            <input type="checkbox" name="internal" value="1">
+            <span>ملاحظة داخلية</span>
+          </label>
+          <button class="btn btn-primary" type="submit">تنفيذ</button>
+        </div>
+      </form>
+      <p class="text-muted" style="font-size:12px;">
+        الحالة الحالية «<?= e(admin_order_status_label((string) $order['order_status'])) ?>» —
+        الانتقالات المسموحة منها هي المعروضة فقط.
+      </p>
+    <?php else: ?>
+      <p class="text-muted">هذه الحالة نهائية ولا يوجد انتقال منها.</p>
+    <?php endif; ?>
+  </div>
 <?php endif; ?>
 
-<div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
-  <a href="orders.php" class="btn btn-secondary btn-sm">← الطلبات</a>
-  <h2 style="font-size:17px; font-weight:900; margin:0; font-family:monospace; color:var(--gold);">
-    <?= e($order['order_code']) ?>
-  </h2>
-  <?php [$sl, $sc] = $status_labels[$order['order_status']] ?? ['—','badge-inactive']; ?>
-  <span class="badge <?= $sc ?>"><?= $sl ?></span>
-</div>
-
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-
-  <!-- Left: Order details -->
-  <div style="display:flex; flex-direction:column; gap:16px;">
-
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">📋 تفاصيل الطلب</div></div>
-      <table class="admin-table">
-        <tr><td class="text-muted">الخدمة</td>
-          <td><a href="../service.php?id=<?= (int)$order['service_id'] ?>" target="_blank"
-                 style="color:var(--cyan);"><?= e($order['service_name']) ?></a></td></tr>
-        <tr><td class="text-muted">الكمية</td><td><?= (int)$order['quantity'] ?></td></tr>
-        <tr><td class="text-muted">الرابط</td><td dir="ltr"><?= $order['target_url'] ? '<a href="'.e($order['target_url']).'" target="_blank">'.e($order['target_url']).'</a>' : '—' ?></td></tr>
-        <tr><td class="text-muted">نوع الهدف</td><td><?= e($order['target_type'] ?: '—') ?></td></tr>
-        <tr><td class="text-muted">الجودة</td><td><?= e($order['quality_option'] ?: '—') ?></td></tr>
-        <tr><td class="text-muted">الضمان</td><td><?= e($order['warranty_option'] ?: '—') ?></td></tr>
-        <tr><td class="text-muted">سعر الوحدة</td>
-          <td><?= $order['unit_price'] > 0 ? number_format($order['unit_price'],2).' '.$currency : '—' ?></td></tr>
-        <tr><td class="text-muted">الإجمالي</td>
-          <td style="font-weight:700; color:var(--gold);">
-            <?= $order['total_price'] > 0 ? number_format($order['total_price'],2).' '.$currency : 'حسب الطلب' ?>
-          </td></tr>
-        <tr><td class="text-muted">نوع الطلب</td><td><?= e($order['order_type']) ?></td></tr>
-        <tr><td class="text-muted">وساطة</td>
-          <td><?= $order['mediation_enabled'] ? '<span class="badge badge-active">نعم</span>' : 'لا' ?></td></tr>
-        <tr><td class="text-muted">تاريخ الإنشاء</td>
-          <td class="text-muted"><?= e($order['created_at']) ?></td></tr>
-        <tr><td class="text-muted">آخر تحديث</td>
-          <td class="text-muted"><?= e($order['updated_at']) ?></td></tr>
-      </table>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">👤 بيانات العميل</div></div>
-      <table class="admin-table">
-        <tr><td class="text-muted">الاسم</td><td><?= e($order['customer_name'] ?: '—') ?></td></tr>
-        <tr><td class="text-muted">الهاتف</td>
-          <td><?= $order['customer_phone'] ? '<span style="color:var(--cyan);">'.e($order['customer_phone']).'</span>' : '—' ?></td></tr>
-        <tr><td class="text-muted">البريد</td><td><?= e($order['customer_email'] ?: '—') ?></td></tr>
-        <tr><td class="text-muted">ملاحظات العميل</td>
-          <td style="white-space:pre-wrap; font-size:13px;"><?= e($order['customer_notes'] ?: '—') ?></td></tr>
-      </table>
-    </div>
-
-    <?php if ($order['whatsapp_message']): ?>
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">💬 رسالة واتساب</div></div>
-      <pre style="font-size:12px; color:var(--muted); white-space:pre-wrap; line-height:1.8;
-                  background:var(--bg); padding:12px; border-radius:10px; font-family:monospace;">
-<?= e($order['whatsapp_message']) ?></pre>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($order['supplier_name'] || $order['supplier_contact']): ?>
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">🏭 بيانات المورد</div></div>
-      <table class="admin-table">
-        <tr><td class="text-muted">المورد</td><td><?= e($order['supplier_name'] ?: '—') ?></td></tr>
-        <tr><td class="text-muted">التواصل</td><td><?= e($order['supplier_contact'] ?: '—') ?></td></tr>
-      </table>
-    </div>
-    <?php endif; ?>
-
-  </div>
-
-  <!-- Right: Actions -->
-  <div style="display:flex; flex-direction:column; gap:16px;">
-
-    <!-- Quick Actions -->
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">⚡ إجراءات سريعة</div></div>
-      <div style="display:flex; flex-direction:column; gap:8px; padding:4px 0;">
-
-        <?php if ($order['whatsapp_number']): ?>
-          <?php
-          $wa_num = preg_replace('/\D/','',$order['whatsapp_number']);
-          $wa_txt = urlencode("مرحبًا، بخصوص الطلب: " . $order['order_code'] . " — " . $order['service_name']);
-          ?>
-          <a href="https://wa.me/<?= $wa_num ?>?text=<?= $wa_txt ?>" target="_blank"
-             class="btn btn-secondary" style="background:#25d366; border-color:#25d366; color:#fff;">
-            💬 فتح واتساب
-          </a>
-        <?php endif; ?>
-
-        <form method="post" style="margin:0;" onsubmit="return confirm('تأكيد تغيير الحالة؟');">
-          <input type="hidden" name="act" value="set_status">
-          <div style="display:flex; gap:6px;">
-            <select name="order_status" class="form-select" style="flex:1;">
-              <?php foreach ($status_labels as $v => [$l]): ?>
-                <option value="<?= $v ?>" <?= $order['order_status']===$v ? 'selected' : '' ?>><?= $l ?></option>
-              <?php endforeach; ?>
-            </select>
-            <button type="submit" class="btn btn-primary btn-sm">تحديث الحالة</button>
-          </div>
-        </form>
-
-        <form method="post" style="margin:0;" onsubmit="return confirm('تأكيد تغيير حالة الدفع؟');">
-          <input type="hidden" name="act" value="set_payment">
-          <div style="display:flex; gap:6px;">
-            <select name="payment_status" class="form-select" style="flex:1;">
-              <?php foreach ($pay_labels as $v => [$l]): ?>
-                <option value="<?= $v ?>" <?= $order['payment_status']===$v ? 'selected' : '' ?>><?= $l ?></option>
-              <?php endforeach; ?>
-            </select>
-            <button type="submit" class="btn btn-secondary btn-sm">تحديث الدفع</button>
-          </div>
-        </form>
-
-
-        <?php if(!empty($order['provider_id'])): ?>
-          <?php if(empty($order['provider_order_id'])): ?><form method="post"><input type="hidden" name="act" value="send_provider"><button class="btn btn-primary" style="width:100%" onclick="return confirm('إرسال الأوردر إلى سيرفر المزود؟')">🚀 إرسال للسيرفر</button></form><?php else: ?><form method="post"><input type="hidden" name="act" value="sync_provider"><button class="btn btn-secondary" style="width:100%">🔄 مزامنة من السيرفر</button></form><div class="text-muted" dir="ltr">Provider #<?= e($order['provider_order_id']) ?> · <?= e($order['provider_status']??'') ?></div><?php endif; ?>
-        <?php endif; ?>
-        <?php if (!$order['mediation_enabled']): ?>
-        <form method="post" style="margin:0;" onsubmit="return confirm('تحويل الطلب إلى وساطة؟');">
-          <input type="hidden" name="act" value="convert_mediation">
-          <button type="submit" class="btn btn-secondary" style="width:100%;">🤝 تحويل إلى وساطة</button>
-        </form>
-        <?php endif; ?>
-
+<?php if (admin_can('payments.confirm') && $order['payment_status'] !== 'paid'): ?>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">تأكيد الدفع</div></div>
+    <form method="post">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="confirm_payment">
+      <div class="form-grid-3">
+        <div class="form-group">
+          <label class="form-label">المبلغ المستلم</label>
+          <input class="form-input" type="number" step="0.01" min="0.01" dir="ltr"
+                 name="amount" value="<?= e(number_format((float) $order['total_price'], 2, '.', '')) ?>">
+        </div>
+        <div class="form-group">
+          <label class="form-label">الطريقة</label>
+          <input class="form-input" type="text" name="method" placeholder="vodafone / instapay / bank">
+        </div>
+        <div class="form-group">
+          <label class="form-label">المرجع</label>
+          <input class="form-input" type="text" name="reference" dir="ltr" placeholder="رقم العملية">
+        </div>
       </div>
+      <button class="btn btn-primary" type="submit">تأكيد استلام المبلغ</button>
+    </form>
+    <div class="confidential-note">
+      لا تؤكّد الدفع إلا بعد التحقق من وصول المبلغ فعليًا للحساب المستلم.
     </div>
-
-
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">📈 عداد تقدم الأوردر</div></div>
-      <?php $done=(int)($order['completed_quantity']??0); $remaining=max(0,(int)$order['quantity']-$done); $pct=(float)($order['progress_percent']??(($order['quantity']>0)?$done/$order['quantity']*100:0)); ?>
-      <div style="padding:8px 0"><div style="height:12px;background:var(--bg);border-radius:999px;overflow:hidden"><div style="height:100%;width:<?= max(0,min(100,$pct)) ?>%;background:linear-gradient(90deg,var(--cyan),var(--gold))"></div></div><div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px"><span>تم: <?= number_format($done) ?></span><span>متبقي: <?= number_format($remaining) ?></span><strong><?= number_format($pct,1) ?>%</strong></div></div>
-      <form method="post" style="display:flex;gap:8px"><input type="hidden" name="act" value="set_progress"><input type="number" min="0" max="<?= (int)$order['quantity'] ?>" name="completed_quantity" value="<?= $done ?>" class="form-input"><button class="btn btn-primary">تحديث التقدم</button></form>
-    </div>
-
-    <!-- Admin Notes -->
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">📝 ملاحظات الإدارة (سرية)</div></div>
-      <form method="post" style="padding:4px 0;">
-        <input type="hidden" name="act" value="save_notes">
-        <textarea name="admin_notes" class="form-textarea" rows="5"
-                  placeholder="ملاحظات داخلية — لا تُعرض للعميل..."><?= e($order['admin_notes']) ?></textarea>
-        <button type="submit" class="btn btn-primary" style="margin-top:10px; width:100%;">حفظ الملاحظات</button>
-      </form>
-    </div>
-
-    <!-- Payment & Status summary -->
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">📊 الحالة الحالية</div></div>
-      <table class="admin-table">
-        <?php [$sl2, $sc2] = $status_labels[$order['order_status']] ?? ['—','badge-inactive']; ?>
-        <?php [$pl2, $pc2] = $pay_labels[$order['payment_status']] ?? ['—','badge-inactive']; ?>
-        <tr><td class="text-muted">حالة الطلب</td>
-          <td><span class="badge <?= $sc2 ?>"><?= $sl2 ?></span></td></tr>
-        <tr><td class="text-muted">حالة الدفع</td>
-          <td><span class="badge <?= $pc2 ?>"><?= $pl2 ?></span></td></tr>
-      </table>
-    </div>
-
   </div>
+<?php endif; ?>
+
+<?php if ($suppliers): ?>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">إسناد لمورد</div></div>
+    <form method="post" class="filter-bar">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="assign_supplier">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">المورد</label>
+        <select class="form-select" name="supplier_id">
+          <option value="0">— بدون —</option>
+          <?php foreach ($suppliers as $supplier): ?>
+            <option value="<?= (int) $supplier['id'] ?>"
+                    <?= (int) $order['supplier_id'] === (int) $supplier['id'] ? 'selected' : '' ?>>
+              <?= e((string) $supplier['name']) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <button class="btn btn-secondary" type="submit">حفظ</button>
+    </form>
+    <div class="confidential-note">
+      المورد يرى الخدمة والكمية والهدف فقط. اسم العميل وهاتفه وبريده لا تصل إليه.
+    </div>
+  </div>
+<?php endif; ?>
+
+<?php if (admin_can('providers.manage') && (int) $order['provider_id'] > 0): ?>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">مزود الخدمة</div></div>
+    <table class="kv">
+      <tr><td>رقم الطلب لدى المزود</td><td dir="ltr"><?= e((string) ($order['provider_order_id'] ?: '—')) ?></td></tr>
+      <tr><td>حالته لدى المزود</td><td dir="ltr"><?= e((string) ($order['provider_status'] ?: '—')) ?></td></tr>
+      <tr><td>التقدّم</td><td><?= e(number_format((float) $order['progress_percent'], 2)) ?>%</td></tr>
+      <tr><td>آخر مزامنة</td><td dir="ltr"><?= $order['last_provider_sync_at'] ? e((string) $order['last_provider_sync_at']) : '—' ?></td></tr>
+    </table>
+    <div class="flex-gap mt-8">
+      <?php if (trim((string) $order['provider_order_id']) === ''): ?>
+        <?= admin_action_button('provider_send', ['id' => $id], 'إرسال للمزود', 'btn btn-primary btn-sm',
+              'إرسال هذا الطلب إلى المزود الآن؟') ?>
+      <?php else: ?>
+        <?= admin_action_button('provider_sync', ['id' => $id], 'مزامنة الحالة') ?>
+      <?php endif; ?>
+    </div>
+  </div>
+<?php endif; ?>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">مسار الطلب</div></div>
+  <?php if ($timeline): ?>
+    <ul class="timeline">
+      <?php foreach ($timeline as $step): ?>
+        <li>
+          <strong><?= e(admin_order_status_label((string) $step['to_status'])) ?></strong>
+          <?php if ($step['from_status']): ?>
+            <span class="text-muted" style="font-size:12px;">
+              من <?= e(admin_order_status_label((string) $step['from_status'])) ?>
+            </span>
+          <?php endif; ?>
+          <?= (int) $step['customer_visible'] === 0 ? admin_badge('داخلية', 'inactive') : '' ?>
+          <?php if (!empty($step['note'])): ?>
+            <div class="text-muted" style="font-size:12px;"><?= e((string) $step['note']) ?></div>
+          <?php endif; ?>
+          <time dir="ltr">
+            <?= e(date('Y-m-d H:i', strtotime((string) $step['created_at']))) ?>
+            <?= !empty($step['admin_name']) ? ' · ' . e((string) $step['admin_name']) : '' ?>
+          </time>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php else: ?>
+    <div class="empty-state"><p>لا توجد حركات مسجّلة على هذا الطلب.</p></div>
+  <?php endif; ?>
 </div>
 
-    </div><!-- /admin-content -->
-  </div><!-- /admin-main -->
-</div><!-- /admin-wrap -->
-</body>
-</html>
+<?php if ($payments): ?>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">المدفوعات</div></div>
+    <table class="admin-table">
+      <thead><tr><th>الطريقة</th><th>المبلغ</th><th>الحالة</th><th>المرجع</th><th>التاريخ</th></tr></thead>
+      <tbody>
+      <?php foreach ($payments as $payment): ?>
+        <tr>
+          <td><?= e((string) $payment['method_key']) ?></td>
+          <td class="money"><?= e(number_format((float) $payment['amount'], 2)) ?> <?= e((string) $payment['currency']) ?></td>
+          <td><?= e((string) $payment['status']) ?></td>
+          <td dir="ltr" style="font-size:12px;"><?= e((string) ($payment['reference'] ?? '—')) ?></td>
+          <td class="text-muted" style="font-size:12px;" dir="ltr"><?= e(date('Y-m-d H:i', strtotime((string) $payment['created_at']))) ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+<?php endif; ?>
+
+<?php if (admin_can('orders.manage')): ?>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">ملاحظات داخلية</div></div>
+    <form method="post">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="save_notes">
+      <div class="form-group">
+        <textarea class="form-input form-textarea" name="admin_notes" rows="4"><?= e((string) ($order['admin_notes'] ?? '')) ?></textarea>
+      </div>
+      <button class="btn btn-secondary" type="submit">حفظ</button>
+    </form>
+  </div>
+<?php endif; ?>
+
+<p><a class="btn btn-secondary" href="orders.php">← كل الطلبات</a></p>
+
+<?php admin_layout_end(); ?>

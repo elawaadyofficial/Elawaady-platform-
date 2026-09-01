@@ -2,6 +2,8 @@
 session_start();
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/_helpers.php';
+admin_require('media.manage');
 require_once __DIR__ . '/upload_handler.php';
 
 $page_title_admin = '🎠 إدارة الكاروسيل';
@@ -17,6 +19,7 @@ $all_services   = fetch_all($conn,
 
 // ── Handle POST ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $action = $_POST['action'] ?? '';
 
     // ── Add / Edit ──
@@ -301,6 +304,7 @@ $active = count(array_filter($items, fn($r) => $r['is_active']));
 <div class="car-form-panel">
     <h3><?= $edit_item ? '✏️ تعديل البطاقة #' . (int)$edit_item['id'] : '➕ إضافة بطاقة جديدة' ?></h3>
     <form method="POST" enctype="multipart/form-data" id="carForm">
+<?= csrf_field() ?>
         <input type="hidden" name="action" value="save">
         <?php if ($edit_item): ?>
             <input type="hidden" name="id" value="<?= (int)$edit_item['id'] ?>">
@@ -462,6 +466,7 @@ $active = count(array_filter($items, fn($r) => $r['is_active']));
                class="btn-xs btn-xs-edit">✏️ تعديل</a>
 
             <form method="POST" style="flex:1;margin:0;">
+<?= csrf_field() ?>
                 <input type="hidden" name="action"    value="toggle">
                 <input type="hidden" name="id"        value="<?= (int)$item['id'] ?>">
                 <input type="hidden" name="is_active" value="<?= $item['is_active'] ? 0 : 1 ?>">
@@ -472,6 +477,7 @@ $active = count(array_filter($items, fn($r) => $r['is_active']));
 
             <form method="POST" style="flex:0 0 auto;margin:0;"
                   onsubmit="return confirm('هل تريد حذف هذه البطاقة نهائيًا؟')">
+<?= csrf_field() ?>
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="id"     value="<?= (int)$item['id'] ?>">
                 <button type="submit" class="btn-xs btn-xs-del">🗑️</button>
@@ -487,6 +493,7 @@ $active = count(array_filter($items, fn($r) => $r['is_active']));
         🔃 إعادة الترتيب اليدوي
     </summary>
     <form method="POST" style="margin-top:12px;">
+<?= csrf_field() ?>
         <input type="hidden" name="action" value="reorder">
         <div class="reorder-grid">
             <?php foreach ($items as $item): ?>
