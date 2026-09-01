@@ -14,7 +14,7 @@ $main_cats = fetch_all($conn, "SELECT id, name FROM store_categories ORDER BY so
 $row = [
     'name'=>'','name_en'=>'','slug'=>'','icon'=>'','description'=>'',
     'sort_order'=>0,'is_active'=>1,'category_id'=>0,
-    'icon_image'=>'','category_image'=>'','cat_banner_image'=>'',
+    'icon_image'=>'','image'=>'','banner_image'=>'',
 ];
 
 if ($is_edit) {
@@ -74,10 +74,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Handle image uploads
             $img_upd = []; $img_vals = [];
+            // 'image' is the field every storefront renderer reads for this
+            // category's card — the homepage key grid, the category band
+            // rails, categories.php. 'category_image_file' is kept as the
+            // upload input name (it is what the form field is already wired
+            // to) but it now writes to the column the store actually shows.
             $upload_map = [
                 'icon_image_file'     => [__DIR__ . '/../uploads/categories/icons/',   'icon_image'],
-                'category_image_file' => [__DIR__ . '/../uploads/categories/images/',  'category_image'],
-                'banner_image_file'   => [__DIR__ . '/../uploads/categories/banners/', 'cat_banner_image'],
+                'category_image_file' => [__DIR__ . '/../uploads/categories/images/',  'image'],
+                'banner_image_file'   => [__DIR__ . '/../uploads/categories/banners/', 'banner_image'],
             ];
             foreach ($upload_map as $field => [$dir, $col]) {
                 try {
@@ -107,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Reload fresh from DB to get image paths
 if ($is_edit) {
     $tbl = $type === 'sub' ? 'store_subcategories' : 'store_categories';
-    $fresh = fetch_one($conn, "SELECT icon_image, category_image, cat_banner_image FROM $tbl WHERE id=?", "i", $id);
+    $fresh = fetch_one($conn, "SELECT icon_image, image, banner_image FROM $tbl WHERE id=?", "i", $id);
     if ($fresh) $row = array_merge($row, $fresh);
 }
 
@@ -227,9 +232,9 @@ function cat_img_field(string $label, string $file_key, string $current_path, st
       <div class="panel-title" style="margin-bottom:16px;">🖼️ صور القسم</div>
       <div class="form-grid">
         <?php
-        cat_img_field('أيقونة القسم',    'icon_image_file',     $row['icon_image'] ?? '',     'cat-icon');
-        cat_img_field('صورة القسم',      'category_image_file', $row['category_image'] ?? '',  'cat-img');
-        cat_img_field('بانر القسم',      'banner_image_file',   $row['cat_banner_image'] ?? '', 'cat-banner');
+        cat_img_field('أيقونة القسم',                                       'icon_image_file',     $row['icon_image'] ?? '', 'cat-icon');
+        cat_img_field('صورة الكارت (تظهر في الرئيسية وصفحة الأقسام) — 1:1', 'category_image_file', $row['image'] ?? '',      'cat-img');
+        cat_img_field('بانر القسم — عريض',                                  'banner_image_file',   $row['banner_image'] ?? '', 'cat-banner');
         ?>
       </div>
     </div>

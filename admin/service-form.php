@@ -159,15 +159,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // ── Image uploads (separate UPDATE after main save) ──────
                 require_once __DIR__ . '/upload_handler.php';
                 $img_upd = []; $img_vals = [];
+                // main_image_file writes to both main_image and image: image
+                // is what the category band rails and key grids read
+                // (exd_tile / exd_key_card), main_image is what the
+                // best-seller/most-used rail reads (falling back to image).
+                // Writing one column only left half the storefront's cards
+                // empty after an admin uploaded "الصورة الرئيسية".
                 $upload_map = [
-                    'main_image_file'   => [__DIR__ . '/../uploads/services/main/',    'main_image'],
-                    'icon_image_file'   => [__DIR__ . '/../uploads/services/icons/',   'icon_image'],
-                    'banner_image_file' => [__DIR__ . '/../uploads/services/banners/', 'banner_image'],
+                    'main_image_file'   => [__DIR__ . '/../uploads/services/main/',    ['main_image', 'image']],
+                    'icon_image_file'   => [__DIR__ . '/../uploads/services/icons/',   ['icon_image']],
+                    'banner_image_file' => [__DIR__ . '/../uploads/services/banners/', ['banner_image']],
                 ];
-                foreach ($upload_map as $field => [$dir, $col]) {
+                foreach ($upload_map as $field => [$dir, $cols]) {
                     try {
                         $path = upload_image($field, $dir);
-                        if ($path !== null) { $img_upd[] = "$col=?"; $img_vals[] = $path; }
+                        if ($path !== null) {
+                            foreach ($cols as $col) { $img_upd[] = "$col=?"; $img_vals[] = $path; }
+                        }
                     } catch (Exception $e) { $errors[] = $e->getMessage(); }
                 }
 
