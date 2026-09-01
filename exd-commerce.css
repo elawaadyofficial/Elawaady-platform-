@@ -276,6 +276,7 @@
 .cart-line:last-of-type { border-bottom: 0; }
 
 .cart-line__art {
+    background: var(--exd-bg-art, var(--exd-bg-inset));
     inline-size: 76px;
     aspect-ratio: 1;
     border-radius: var(--exd-radius-md);

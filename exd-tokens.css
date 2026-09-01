@@ -168,7 +168,17 @@
     --exd-bg-raise: #150d22;     /* page ground — sampled              */
     --exd-bg-panel: #1b0f37;     /* card / panel — sampled             */
     --exd-bg-panel-2: #22163c;   /* hovered / elevated — sampled       */
-    --exd-bg-inset: #1a2640;     /* wells, badge grounds — sampled     */
+    /* The well behind artwork, inputs and badges.
+       This was #1a2640 — a navy: green above red, blue far above both. It is
+       the ground of every card frame in the store, so one blue token made the
+       whole storefront read cold and blue instead of EXD purple. The value
+       below is sampled from the store's own reference (#271442 / #23123e),
+       and it is a purple: red above green, blue above red. */
+    --exd-bg-inset: #221340;
+
+    /* Artwork sits one step brighter than the card it is on, the way the
+       reference's platform chips do (#30184c / #351a51). */
+    --exd-bg-art: #2a1650;
     --exd-cover: #4c2276;        /* account cover wash — sampled       */
 
     --exd-fg: #ffffff;
