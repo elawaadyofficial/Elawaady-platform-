@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "deployment_mode": "validation_only",
+  "production_deploy_allowed": false,
+  "database": {
+    "must_be_isolated": true,
+    "allow_production_host": false,
+    "allow_production_database": false,
+    "allow_shared_credentials": false
+  },
+  "runtime": {
+    "required_app_env": "staging",
+    "fail_closed_on_unknown_environment": true,
+    "production_must_fail_fast_on_boot_error": true
+  },
+  "health": {
+    "paths": [
+      "/health",
+      "/api/v1/health"
+    ],
+    "ready_status_code": 200,
+    "bootstrap_incomplete_status_code": 503,
+    "bootstrap_incomplete_status": "bootstrap_incomplete",
+    "required_headers": {
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex, nofollow"
+    },
+    "must_not_expose": [
+      "database_credentials",
+      "stack_trace",
+      "secrets",
+      "business_data"
+    ]
+  },
+  "handoff": {
+    "requires_release_readiness_signal": true,
+    "requires_health_validation": true,
+    "production_transition_is_separate_authorized_action": true
+  }
+}
