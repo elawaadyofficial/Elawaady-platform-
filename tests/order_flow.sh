@@ -27,6 +27,17 @@ head1(){ printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 csrf() { curl -s -b "$1" -c "$1" "$2" | grep -oE 'name="csrf_token" value="[a-f0-9]+"' | head -1 | sed 's/.*value="//;s/"//'; }
 
+# A real browser loads the service page once and posts the two hidden fields it
+# finds there: the CSRF token and the checkout intent, which order_create.php
+# requires and which is bound to this service and this session. Reading both
+# from a single fetch matters — a second fetch would issue a second intent, and
+# the session keeps only a bounded number of them.
+buy_form() {
+  local page; page="$(curl -s -b "$JAR" -c "$JAR" "$BASE/service.php?id=$1")"
+  TOKEN="$(printf '%s' "$page" | grep -oE 'name="csrf_token" value="[a-f0-9]+"' | head -1 | sed 's/.*value="//;s/"//')"
+  INTENT="$(printf '%s' "$page" | grep -oE 'name="checkout_intent" value="[A-Za-z0-9_]+"' | head -1 | sed 's/.*value="//;s/"//')"
+}
+
 # Read a single value straight from the database, so the test checks stored
 # state rather than only what a page happens to print.
 sql() { php -r '
@@ -64,9 +75,9 @@ grep -q exd_session "$JAR" && ok 'the buyer is signed in' || bad 'the buyer is s
 
 head1 'A purchase with no money in the wallet'
 
-TOKEN="$(csrf "$JAR" "$BASE/service.php?id=$SERVICE_ID")"
+buy_form "$SERVICE_ID"
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" \
-  -d "csrf_token=$TOKEN&service_id=$SERVICE_ID&action=direct_buy&qty=2" "$BASE/order_create.php")
+  -d "csrf_token=$TOKEN&checkout_intent=$INTENT&service_id=$SERVICE_ID&action=direct_buy&qty=2" "$BASE/order_create.php")
 CODE=$(echo "$LOC" | grep -oE 'code=[^&]+' | sed 's/code=//')
 [ -n "$CODE" ] && ok "an order is created ($CODE)" || bad 'an order is created' "$LOC"
 
@@ -80,9 +91,9 @@ TOTAL="$(sql "SELECT total_price FROM orders WHERE order_code='$CODE'")"
 
 head1 'The posted price is never trusted'
 
-TOKEN="$(csrf "$JAR" "$BASE/service.php?id=$SERVICE_ID")"
+buy_form "$SERVICE_ID"
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" \
-  -d "csrf_token=$TOKEN&service_id=$SERVICE_ID&action=direct_buy&qty=1&price=0.01&unit_price=0.01&total_price=0.01" \
+  -d "csrf_token=$TOKEN&checkout_intent=$INTENT&service_id=$SERVICE_ID&action=direct_buy&qty=1&price=0.01&unit_price=0.01&total_price=0.01" \
   "$BASE/order_create.php")
 CHEAT=$(echo "$LOC" | grep -oE 'code=[^&]+' | sed 's/code=//')
 CHEAT_TOTAL="$(sql "SELECT total_price FROM orders WHERE order_code='$CHEAT'")"
@@ -91,9 +102,9 @@ CHEAT_TOTAL="$(sql "SELECT total_price FROM orders WHERE order_code='$CHEAT'")"
 
 head1 'Quantity bounds'
 
-TOKEN="$(csrf "$JAR" "$BASE/service.php?id=$SERVICE_ID")"
+buy_form "$SERVICE_ID"
 curl -s -o /dev/null -b "$JAR" -c "$JAR" \
-  -d "csrf_token=$TOKEN&service_id=$SERVICE_ID&action=direct_buy&qty=9999" "$BASE/order_create.php"
+  -d "csrf_token=$TOKEN&checkout_intent=$INTENT&service_id=$SERVICE_ID&action=direct_buy&qty=9999" "$BASE/order_create.php"
 OVER="$(sql "SELECT COUNT(*) FROM orders WHERE user_id=$BUYER_ID AND quantity=9999")"
 [ "$OVER" = "0" ] && ok 'a quantity above the maximum is refused' || bad 'a quantity above the maximum is refused'
 
@@ -128,9 +139,9 @@ AFTER="$(sql "SELECT balance FROM wallets WHERE user_id=$BUYER_ID")"
 [ "$AFTER" = "200.00" ] && ok 'an adjustment with no stated reason is refused' \
                         || bad 'an adjustment with no stated reason is refused' "got $AFTER"
 
-TOKEN="$(csrf "$JAR" "$BASE/service.php?id=$SERVICE_ID")"
+buy_form "$SERVICE_ID"
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" \
-  -d "csrf_token=$TOKEN&service_id=$SERVICE_ID&action=direct_buy&qty=3" "$BASE/order_create.php")
+  -d "csrf_token=$TOKEN&checkout_intent=$INTENT&service_id=$SERVICE_ID&action=direct_buy&qty=3" "$BASE/order_create.php")
 PAID=$(echo "$LOC" | grep -oE 'code=[^&]+' | sed 's/code=//')
 
 PAID_STATUS="$(sql "SELECT payment_status FROM orders WHERE order_code='$PAID'")"
@@ -171,9 +182,9 @@ php -r '
   $stmt->bind_param("i", $argv[1]); $stmt->execute();
 ' -- "$SERVICE_ID"
 
-TOKEN="$(csrf "$JAR" "$BASE/service.php?id=$SERVICE_ID")"
+buy_form "$SERVICE_ID"
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" \
-  -d "csrf_token=$TOKEN&service_id=$SERVICE_ID&action=direct_buy&qty=1" "$BASE/order_create.php")
+  -d "csrf_token=$TOKEN&checkout_intent=$INTENT&service_id=$SERVICE_ID&action=direct_buy&qty=1" "$BASE/order_create.php")
 BIG=$(echo "$LOC" | grep -oE 'code=[^&]+' | sed 's/code=//')
 BIG_STATUS="$(sql "SELECT payment_status FROM orders WHERE order_code='$BIG'")"
 [ "$BIG_STATUS" = "pending" ] && ok 'an order beyond the balance is created unpaid, not part-paid' \
