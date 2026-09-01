@@ -62,10 +62,19 @@ jobs:
                   '>التفاصيل</a>',
                   '>اطلب الآن</a>',
               ],
-              Path('exd-layouts.css'): [
-                  '.exd-media',
-                  '.card-actions',
-              ],
+          }
+
+          # The card language must be declared somewhere in the stylesheets the
+          # store ships, not in one particular file: .exd-media lives in
+          # exd-media.css and .card-actions in style.css, and pinning them to
+          # exd-layouts.css asserted something that was never true.
+          stylesheets = {
+              '.exd-media': ['exd-media.css', 'exd-layouts.css', 'exd-commerce.css', 'exd-tokens.css'],
+              '.card-actions': ['style.css', 'storefront.css', 'exd-layouts.css', 'exd-commerce.css'],
+              '.exd-rail': ['exd-layouts.css'],
+              '.exd-keys': ['exd-layouts.css'],
+              '.exd-duo': ['exd-layouts.css'],
+              '.exd-secbanner': ['exd-layouts.css'],
           }
 
           failures = []
@@ -77,6 +86,11 @@ jobs:
               for needle in needles:
                   if needle not in text:
                       failures.append(f'{path}: missing catalog contract token: {needle}')
+
+          for selector, candidates in stylesheets.items():
+              present = [c for c in candidates if Path(c).exists() and selector in Path(c).read_text(encoding='utf-8')]
+              if not present:
+                  failures.append(f'{selector}: not declared in any of {", ".join(candidates)}')
 
           if failures:
               print('ERROR: storefront catalog visual contract regressed:', file=sys.stderr)

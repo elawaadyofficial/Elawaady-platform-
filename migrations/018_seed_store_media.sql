@@ -16,6 +16,42 @@
 -- already been given artwork in the dashboard keeps it.
 -- ============================================================================
 
+-- ── Make sure the columns this file writes exist ────────────────────────────
+-- database.sql creates store_services with an `image` column, so on a real
+-- install this is already true. A database built only from migrations — which
+-- is what the migration smoke test builds — has never been given one, and a
+-- migration that depends on a column it does not own is a migration that fails
+-- somewhere its author never looked.
+--
+-- Conditional DDL, portable across MySQL 8 and MariaDB, and a no-op when the
+-- column is already there.
+
+SET @exd_has_image := (
+    SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE()
+       AND table_name = 'store_services'
+       AND column_name = 'image'
+);
+SET @exd_sql := IF(@exd_has_image = 0,
+    'ALTER TABLE store_services ADD COLUMN image VARCHAR(500) NULL',
+    'DO 0');
+PREPARE exd_stmt FROM @exd_sql;
+EXECUTE exd_stmt;
+DEALLOCATE PREPARE exd_stmt;
+
+SET @exd_has_sub_image := (
+    SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE()
+       AND table_name = 'store_services'
+       AND column_name = 'service_link'
+);
+SET @exd_sql := IF(@exd_has_sub_image = 0,
+    'ALTER TABLE store_services ADD COLUMN service_link VARCHAR(500) NULL',
+    'DO 0');
+PREPARE exd_stmt FROM @exd_sql;
+EXECUTE exd_stmt;
+DEALLOCATE PREPARE exd_stmt;
+
 UPDATE store_services SET image = 'uploads/carousel/carousel-01.webp', main_image = 'uploads/carousel/carousel-01.webp' WHERE id = 1  AND (image IS NULL OR image = '');
 UPDATE store_services SET image = 'uploads/carousel/carousel-02.webp', main_image = 'uploads/carousel/carousel-02.webp' WHERE id = 2  AND (image IS NULL OR image = '');
 UPDATE store_services SET image = 'uploads/carousel/carousel-03.webp', main_image = 'uploads/carousel/carousel-03.webp' WHERE id = 3  AND (image IS NULL OR image = '');

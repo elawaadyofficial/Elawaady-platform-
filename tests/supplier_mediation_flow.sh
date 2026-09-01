@@ -16,6 +16,7 @@ ADMIN_PASS="${ADMIN_PASS:-}"
 PASS=0; FAIL=0
 STAMP="$(date +%s)$RANDOM"
 SUPP="supp${STAMP}@exd.test"
+OFFER_TITLE="خدمة اختبار ${STAMP}"
 BUYER="mbuy${STAMP}@exd.test"
 SELLER="msel${STAMP}@exd.test"
 PW="Test1234pass"
@@ -94,7 +95,9 @@ head1 'Offering a service'
 
 TOKEN="$(csrf "$SJAR" "$BASE/supplier-dashboard.php?tab=offers")"
 curl -s -o /dev/null -b "$SJAR" -c "$SJAR" \
-  -d "csrf_token=$TOKEN&action=submit_offer&title=خدمة اختبار من مورد&supplier_price=40&execution_time=24 ساعة&description=وصف" \
+  --data-urlencode "csrf_token=$TOKEN" --data-urlencode "action=submit_offer" \
+  --data-urlencode "title=$OFFER_TITLE" --data-urlencode "supplier_price=40" \
+  --data-urlencode "execution_time=24 ساعة" --data-urlencode "description=وصف" \
   "$BASE/supplier-dashboard.php"
 
 OFFER_ID="$(sql "SELECT id FROM supplier_offers WHERE supplier_id=$SUPP_ID ORDER BY id DESC LIMIT 1")"
@@ -103,7 +106,7 @@ OFFER_ID="$(sql "SELECT id FROM supplier_offers WHERE supplier_id=$SUPP_ID ORDER
 REVIEW="$(sql "SELECT review_status FROM supplier_offers WHERE id=$OFFER_ID")"
 [ "$REVIEW" = "pending_review" ] && ok 'the offer waits for review' || bad 'the offer waits for review' "got $REVIEW"
 
-PUBLISHED="$(sql "SELECT COUNT(*) FROM store_services WHERE name='خدمة اختبار من مورد'")"
+PUBLISHED="$(sql "SELECT COUNT(*) FROM store_services WHERE name='$OFFER_TITLE'")"
 [ "$PUBLISHED" = "0" ] && ok 'and is not on the storefront yet' || bad 'the offer is not yet on the storefront'
 
 head1 'Publishing it'
