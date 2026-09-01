@@ -1,0 +1,140 @@
+name: Staging Handoff Final
+
+on:
+  workflow_run:
+    workflows:
+      - Release Handoff Integrity
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: staging-handoff-final-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify-final-handoff:
+    if: >-
+      github.event.workflow_run.head_branch == 'chatgpt/store-build' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Validate final handoff contract
+        run: |
+          php -l tests/staging_handoff_final_contract.php
+          php tests/staging_handoff_final_contract.php
+
+      - name: Download exact integrity attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          INTEGRITY_RUN_ID: ${{ github.event.workflow_run.id }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          ARTIFACT_NAME="release-integrity-$CANDIDATE_SHA"
+          ARTIFACTS_JSON="$(gh api "repos/$REPO/actions/runs/$INTEGRITY_RUN_ID/artifacts")"
+          ARTIFACT_ID="$(jq -r --arg name "$ARTIFACT_NAME" '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else empty end' <<<"$ARTIFACTS_JSON")"
+
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "Expected exactly one non-expired artifact named $ARTIFACT_NAME on integrity run $INTEGRITY_RUN_ID"
+            exit 1
+          fi
+
+          gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" > integrity.zip
+          unzip -q integrity.zip -d integrity
+          test -f integrity/release-candidate-integrity.json
+
+          echo "INTEGRITY_ARTIFACT_ID=$ARTIFACT_ID" >> "$GITHUB_ENV"
+
+      - name: Verify attestation and emit final staging handoff
+        env:
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+          INTEGRITY_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+
+          ATTESTATION="integrity/release-candidate-integrity.json"
+          CURRENT_TREE_SHA="$(git rev-parse 'HEAD^{tree}')"
+
+          jq -e --arg sha "$CANDIDATE_SHA" --arg tree "$CURRENT_TREE_SHA" '
+            .schema_version == 1
+            and .candidate_sha == $sha
+            and .candidate_tree_sha == $tree
+            and (.handoff_sha256 | test("^[0-9a-f]{64}$"))
+            and (.migration_checksum_sha256 | test("^[0-9a-f]{64}$"))
+            and .integrity_verified == true
+            and .release_branch == "chatgpt/store-build"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+          ' "$ATTESTATION" >/dev/null
+
+          PREVIOUS_KNOWN_GOOD_SHA="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          if ! [[ "$PREVIOUS_KNOWN_GOOD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Unable to resolve previous known-good SHA"
+            exit 1
+          fi
+
+          INTEGRITY_SHA256="$(sha256sum "$ATTESTATION" | awk '{print $1}')"
+          MIGRATION_CHECKSUM="$(jq -r '.migration_checksum_sha256' "$ATTESTATION")"
+
+          jq -n \
+            --arg schema_version "1" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg candidate_tree_sha "$CURRENT_TREE_SHA" \
+            --arg previous_known_good_sha "$PREVIOUS_KNOWN_GOOD_SHA" \
+            --arg integrity_sha256 "$INTEGRITY_SHA256" \
+            --arg migration_checksum "$MIGRATION_CHECKSUM" \
+            --arg integrity_run_id "$INTEGRITY_RUN_ID" \
+            --arg integrity_artifact_id "$INTEGRITY_ARTIFACT_ID" \
+            '{
+              schema_version: ($schema_version | tonumber),
+              candidate_sha: $candidate_sha,
+              candidate_tree_sha: $candidate_tree_sha,
+              previous_known_good_sha: $previous_known_good_sha,
+              integrity_attestation_sha256: $integrity_sha256,
+              migration_checksum_sha256: $migration_checksum,
+              source_integrity_run_id: ($integrity_run_id | tonumber),
+              source_integrity_artifact_id: ($integrity_artifact_id | tonumber),
+              release_branch: "chatgpt/store-build",
+              handoff_state: "staging_validation_ready",
+              deployment_mode: "validation_only",
+              production_deploy_allowed: false
+            }' > staging-final-handoff.json
+
+          jq -e --arg sha "$CANDIDATE_SHA" '
+            .candidate_sha == $sha
+            and (.candidate_tree_sha | test("^[0-9a-f]{40}$"))
+            and (.previous_known_good_sha | test("^[0-9a-f]{40}$"))
+            and (.integrity_attestation_sha256 | test("^[0-9a-f]{64}$"))
+            and (.migration_checksum_sha256 | test("^[0-9a-f]{64}$"))
+            and .handoff_state == "staging_validation_ready"
+            and .deployment_mode == "validation_only"
+            and .production_deploy_allowed == false
+          ' staging-final-handoff.json >/dev/null
+
+          cat staging-final-handoff.json
+
+      - name: Upload final staging handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-final-handoff-${{ github.event.workflow_run.head_sha }}
+          path: staging-final-handoff.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Final handoff summary
+        env:
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "Final staging validation handoff created for $CANDIDATE_SHA"
+          echo "This is evidence for staging handoff only; it does not authorize or perform deployment."
