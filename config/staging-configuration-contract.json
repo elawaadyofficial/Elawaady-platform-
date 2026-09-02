@@ -46,6 +46,10 @@
     "secret_values_must_not_be_committed": true,
     "staging_app_env_must_equal": "staging",
     "example_app_env_must_not_equal": "production",
+    "example_app_env_allowed": [
+      "development",
+      "staging"
+    ],
     "forbidden_live_hosts": [
       "elawaady.com",
       ".elawaady.com"
