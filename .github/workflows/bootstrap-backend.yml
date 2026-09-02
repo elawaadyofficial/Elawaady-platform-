@@ -10,6 +10,7 @@ on:
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
       - 'backend/validate_source_candidate.py'
+      - 'backend/release_readiness.py'
       - 'backend/recovery_checks/**'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
@@ -23,6 +24,7 @@ on:
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
       - 'backend/validate_source_candidate.py'
+      - 'backend/release_readiness.py'
       - 'backend/recovery_checks/**'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
@@ -85,6 +87,17 @@ jobs:
 
       - name: Enforce sanitized source admission boundary
         run: python backend/source_admission_contract.py
+
+      - name: Report backend release readiness without network access
+        run: |
+          set +e
+          output=$(python backend/release_readiness.py 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          test "$status" -ne 2
+          echo "$output" | grep -q '"network_access": false'
+          echo "$output" | grep -q '"production_access": false'
 
       - name: Prove historical recovery bundle remains incomplete
         run: |
