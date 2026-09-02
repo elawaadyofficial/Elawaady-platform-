@@ -1,13 +1,18 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "branch": "chatgpt/store-build",
   "production_deploy_allowed": false,
+  "runtime_authority": {
+    "production_runtime": "php",
+    "entrypoint": "index.php",
+    "bootstrap_schema": "database.sql",
+    "installer": "tools/install.php",
+    "python_backend_reference_only": true
+  },
   "branch_protection": {
-    "ready": false,
-    "mode": "planned",
-    "blockers": [
-      "backend_runtime_not_committed"
-    ]
+    "ready": true,
+    "mode": "ready_to_enable",
+    "blockers": []
   },
   "required_checks": [
     {
@@ -32,6 +37,7 @@
     "workflow_names_must_match": true,
     "validation_workflows_must_be_read_only": true,
     "live_deployment_must_remain_disabled": true,
-    "branch_protection_readiness_must_match_workflows": true
+    "branch_protection_readiness_must_match_workflows": true,
+    "runtime_authority_must_match_repository": true
   }
 }
