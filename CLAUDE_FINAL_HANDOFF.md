@@ -4,7 +4,7 @@
 **Branch:** `chatgpt/store-build` (this is the only branch that carries this work; `main` is untouched)
 **Snapshot date:** 2026-09-02
 **Runtime:** PHP 8.1+ (tested on 8.4) + MySQL 8 / MariaDB 10.6+ (`mysqli`), no framework
-**Live `elawaady.com`:** never modified by this work. Every install/deploy path in this repo refuses to target it except through a one-time, terminal-only human override (`ELAWAADY_OWNER_DEPLOY_CONFIRM`, see §11).
+**Live `elawaady.com`:** never modified by this work. As of this exact snapshot, `tools/install.php` refuses **absolutely and unconditionally** to install with `APP_URL` pointing at `elawaady.com` or any subdomain — there is no override flag. (An earlier commit on this branch, `c79fbec`, briefly added a deliberate `ELAWAADY_OWNER_DEPLOY_CONFIRM` terminal-only opt-in after the domain owner explicitly authorized deploying there in conversation; a later commit on this same branch, `3d079fb "security: restore absolute live-domain install guard"`, removed that override and hardened the refusal back to unconditional, without visibility into that authorization. Whoever deploys next should know both of these things happened, and re-add a deliberate, reviewed override only if the owner still wants one.)
 
 This file is a freeze-point handoff, not a roadmap pitch. Every status below was checked against the actual code and, where marked, against a live install running the actual migrations on a real database — not inferred from file names or claimed from memory. Where I could not verify something (no hosting reachable from this environment), that is stated explicitly rather than assumed.
 
