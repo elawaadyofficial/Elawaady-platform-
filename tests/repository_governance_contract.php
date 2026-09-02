@@ -19,7 +19,7 @@ $contract = json_decode((string) file_get_contents($contractPath), true);
 if (!is_array($contract)) {
     fail_repo_governance('contract is not valid JSON');
 }
-if (($contract['schema_version'] ?? null) !== 1) {
+if (($contract['schema_version'] ?? null) !== 2) {
     fail_repo_governance('unsupported schema version');
 }
 if (($contract['branch'] ?? null) !== 'chatgpt/store-build') {
@@ -36,9 +36,33 @@ foreach ([
     'validation_workflows_must_be_read_only',
     'live_deployment_must_remain_disabled',
     'branch_protection_readiness_must_match_workflows',
+    'runtime_authority_must_match_repository',
 ] as $rule) {
     if (($rules[$rule] ?? null) !== true) {
         fail_repo_governance("required rule changed: {$rule}");
+    }
+}
+
+$runtime = $contract['runtime_authority'] ?? null;
+if (!is_array($runtime)) {
+    fail_repo_governance('runtime authority is missing');
+}
+if (($runtime['production_runtime'] ?? null) !== 'php') {
+    fail_repo_governance('authoritative production runtime must remain PHP');
+}
+if (($runtime['python_backend_reference_only'] ?? null) !== true) {
+    fail_repo_governance('python backend must remain reference-only');
+}
+foreach ([
+    'entrypoint' => 'index.php',
+    'bootstrap_schema' => 'database.sql',
+    'installer' => 'tools/install.php',
+] as $field => $expectedPath) {
+    if (($runtime[$field] ?? null) !== $expectedPath) {
+        fail_repo_governance("runtime authority path changed unexpectedly: {$field}");
+    }
+    if (!is_file($root . '/' . $expectedPath) || filesize($root . '/' . $expectedPath) === 0) {
+        fail_repo_governance("authoritative runtime file is missing or empty: {$expectedPath}");
     }
 }
 
@@ -110,19 +134,27 @@ $branchProtection = $contract['branch_protection'] ?? null;
 if (!is_array($branchProtection)) {
     fail_repo_governance('branch protection readiness is missing');
 }
-if (($branchProtection['mode'] ?? null) !== 'planned') {
-    fail_repo_governance('branch protection mode must remain planned until readiness is proven');
-}
 $ready = $branchProtection['ready'] ?? null;
 if (!is_bool($ready)) {
     fail_repo_governance('branch protection ready flag must be boolean');
+}
+$mode = $branchProtection['mode'] ?? null;
+$expectedMode = $ready ? 'ready_to_enable' : 'planned';
+if ($mode !== $expectedMode) {
+    fail_repo_governance("branch protection mode must be {$expectedMode}");
 }
 $blockers = $branchProtection['blockers'] ?? null;
 if (!is_array($blockers)) {
     fail_repo_governance('branch protection blockers must be an array');
 }
+if ($ready && $blockers !== []) {
+    fail_repo_governance('branch protection cannot be ready while blockers remain');
+}
 if ($ready && $pathScopedChecks !== []) {
     fail_repo_governance('branch protection cannot be ready while required checks are path-scoped: ' . implode(', ', $pathScopedChecks));
+}
+if (!$ready && $blockers === []) {
+    fail_repo_governance('branch protection must list at least one blocker when not ready');
 }
 if ($pathScopedChecks !== [] && !in_array('required_checks_are_path_scoped', $blockers, true)) {
     fail_repo_governance('path-scoped required checks must be recorded as a branch protection blocker');
@@ -130,8 +162,8 @@ if ($pathScopedChecks !== [] && !in_array('required_checks_are_path_scoped', $bl
 if ($pathScopedChecks === [] && in_array('required_checks_are_path_scoped', $blockers, true)) {
     fail_repo_governance('path-scoped blocker is stale because all required checks now report on every pull request');
 }
-if (!$ready && !in_array('backend_runtime_not_committed', $blockers, true)) {
-    fail_repo_governance('backend runtime import blocker must remain explicit until source admission completes');
+if (in_array('backend_runtime_not_committed', $blockers, true)) {
+    fail_repo_governance('legacy Python backend import must not block the authoritative PHP runtime');
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
