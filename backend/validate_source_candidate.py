@@ -29,7 +29,7 @@ FORBIDDEN_TEXT_PATTERNS = {
 }
 REQUIRED_RUNTIME_PATHS = {
     "src/Api/App.py",
-    "src/WsgiAdapter.py",
+    "src/Api/WsgiAdapter.py",
     "src/Core/DatabaseFactory.py",
     "database/schema.sql",
     "tests",
