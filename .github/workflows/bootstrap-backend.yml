@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/bootstrap-backend.yml'
       - 'backend/source_recovery_audit.json'
+      - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/bootstrap-backend.yml'
       - 'backend/source_recovery_audit.json'
+      - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
@@ -45,12 +47,30 @@ jobs:
           from pathlib import Path
 
           audit = json.loads(Path('backend/source_recovery_audit.json').read_text(encoding='utf-8'))
+          policy = json.loads(Path('backend/source_sanitization_policy.json').read_text(encoding='utf-8'))
           assert audit['production_deploy_allowed'] is False
           assert audit['raw_source_import_allowed'] is False
           assert audit['review_state'] == 'sanitization_required_before_import'
           assert len(audit['reviewed_source']['sha256']) == 64
           assert audit['reviewed_source']['drive_file_id']
           assert audit['sanitized_validation']['pytest_passed'] == 54
+          assert policy['production_deploy_allowed'] is False
+          assert policy['raw_source_import_allowed'] is False
+          assert policy['reviewed_archive_sha256'] == audit['reviewed_source']['sha256']
+          assert policy['required_validation']['pytest_expected_passed'] == 54
+          assert policy['required_validation']['python_compileall'] is True
+          assert policy['required_validation']['production_preflight'] is True
+          assert policy['required_validation']['source_admission_contract'] is True
+          required_remediations = {item['id'] for item in policy['required_remediations']}
+          assert {
+              'relocatable_paths',
+              'no_raw_database_payloads',
+              'no_bootstrap_credentials',
+              'safe_local_storage_default',
+          } <= required_remediations
+          excluded = set(policy['excluded_paths'])
+          assert 'backups/' in excluded
+          assert 'database/platform_migrated.sql' in excluded
           PY
 
       - name: Enforce sanitized source admission boundary
