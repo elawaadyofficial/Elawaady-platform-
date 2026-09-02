@@ -35,6 +35,7 @@ foreach ([
     'workflow_names_must_match',
     'validation_workflows_must_be_read_only',
     'live_deployment_must_remain_disabled',
+    'branch_protection_readiness_must_match_workflows',
 ] as $rule) {
     if (($rules[$rule] ?? null) !== true) {
         fail_repo_governance("required rule changed: {$rule}");
@@ -48,6 +49,7 @@ if (!is_array($checks) || $checks === []) {
 
 $seenFiles = [];
 $seenNames = [];
+$pathScopedChecks = [];
 foreach ($checks as $check) {
     if (!is_array($check)) {
         fail_repo_governance('invalid required-check entry');
@@ -79,6 +81,10 @@ foreach ($checks as $check) {
             fail_repo_governance("forbidden workflow permission in {$file}: {$forbidden}");
         }
     }
+
+    if (preg_match('/^\s+paths:\s*$/m', $workflow) === 1 || preg_match('/^\s+paths-ignore:\s*$/m', $workflow) === 1) {
+        $pathScopedChecks[] = $name;
+    }
 }
 
 foreach ([
@@ -92,4 +98,29 @@ foreach ([
     }
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . " required checks\n");
+$branchProtection = $contract['branch_protection'] ?? null;
+if (!is_array($branchProtection)) {
+    fail_repo_governance('branch protection readiness is missing');
+}
+if (($branchProtection['mode'] ?? null) !== 'planned') {
+    fail_repo_governance('branch protection mode must remain planned until readiness is proven');
+}
+$ready = $branchProtection['ready'] ?? null;
+if (!is_bool($ready)) {
+    fail_repo_governance('branch protection ready flag must be boolean');
+}
+$blockers = $branchProtection['blockers'] ?? null;
+if (!is_array($blockers)) {
+    fail_repo_governance('branch protection blockers must be an array');
+}
+if ($ready && $pathScopedChecks !== []) {
+    fail_repo_governance('branch protection cannot be ready while required checks are path-scoped: ' . implode(', ', $pathScopedChecks));
+}
+if (!$ready && $pathScopedChecks !== [] && !in_array('required_checks_are_path_scoped', $blockers, true)) {
+    fail_repo_governance('path-scoped required checks must be recorded as a branch protection blocker');
+}
+if (!$ready && !in_array('backend_runtime_not_committed', $blockers, true)) {
+    fail_repo_governance('backend runtime import blocker must remain explicit until source admission completes');
+}
+
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
