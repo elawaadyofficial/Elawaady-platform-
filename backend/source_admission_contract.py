@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Iterable
 
 ROOT = Path(__file__).resolve().parent
 AUDIT_PATH = ROOT / "source_recovery_audit.json"
@@ -26,6 +27,15 @@ REQUIRED_ADMITTED_PATHS = (
     ROOT / "src/Api/App.py",
     ROOT / "src/Api/WsgiAdapter.py",
     ROOT / "src/Core/DatabaseFactory.py",
+    ROOT / "database",
+    ROOT / "tests",
+)
+
+# Only recovered source that can become part of the admitted backend is scanned.
+# Existing bootstrap/governance wrappers are validated by their own safety gates;
+# the quarantined historical bundle is never an admitted runtime root.
+ADMITTED_SCAN_ROOTS = (
+    ROOT / "src",
     ROOT / "database",
     ROOT / "tests",
 )
@@ -53,10 +63,23 @@ def is_control_file(path: Path) -> bool:
     return path.resolve() in CONTROL_FILES
 
 
+def admitted_files() -> Iterable[Path]:
+    """Yield files only from source roots that may be admitted to runtime."""
+    for root in ADMITTED_SCAN_ROOTS:
+        if not root.exists():
+            continue
+        if root.is_file():
+            yield root
+            continue
+        yield from (path for path in root.rglob("*") if path.is_file())
+
+
 def scan_tree() -> list[str]:
     problems: list[str] = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or in_quarantine(path) or is_control_file(path):
+    for path in admitted_files():
+        # Defensive exclusions: neither condition should normally be reachable
+        # because admitted roots are disjoint from quarantine/control files.
+        if in_quarantine(path) or is_control_file(path):
             continue
 
         relative = path.relative_to(ROOT).as_posix()
