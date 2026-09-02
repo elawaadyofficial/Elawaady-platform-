@@ -72,6 +72,12 @@ def main() -> int:
         "live_store_url found in src/Api/App.py",
     )
     assert_rejected(
+        lambda root: (root / "src" / "Api" / "App.py").write_text(
+            "BASE='https://admin.elawaady.com/api'\n", encoding="utf-8"
+        ),
+        "live_store_url found in src/Api/App.py",
+    )
+    assert_rejected(
         lambda root: (root / "src" / "Api" / "App.py").unlink(),
         "required runtime path missing: src/Api/App.py",
     )
