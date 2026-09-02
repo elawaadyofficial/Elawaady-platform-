@@ -67,24 +67,12 @@ if ($env === 'production') {
     exit(1);
 }
 
-// Never let a staging install point at the live store — unless the person
-// running this, at the terminal, deliberately opts in. The owner is the only
-// one who can make that call, and only for a run they are themselves
-// executing: this cannot be set from inside a CI job or a committed file, so
-// it stays a conscious, one-time human decision rather than a default that
-// quietly weakens for everyone.
+// Never let a staging install point at the live store.
 if ($url !== '') {
     $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?: ''));
-    $isElawaady = $host === 'elawaady.com' || str_ends_with($host, '.elawaady.com');
-    $ownerOverride = getenv('ELAWAADY_OWNER_DEPLOY_CONFIRM') === 'yes-deploy-elawaady-now';
-    if ($isElawaady && !$ownerOverride) {
+    if ($host === 'elawaady.com' || str_ends_with($host, '.elawaady.com')) {
         fwrite(STDERR, "\nRefusing to install: APP_URL points at the live elawaady.com domain.\n");
-        fwrite(STDERR, "If the domain owner has deliberately decided to deploy here, re-run with:\n");
-        fwrite(STDERR, "    ELAWAADY_OWNER_DEPLOY_CONFIRM=yes-deploy-elawaady-now php tools/install.php --admin=owner\n");
         exit(1);
-    }
-    if ($isElawaady && $ownerOverride) {
-        fwrite(STDERR, "\n⚠ ELAWAADY_OWNER_DEPLOY_CONFIRM is set — installing onto elawaady.com.\n");
     }
 }
 
