@@ -10,6 +10,7 @@ on:
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
       - 'backend/validate_source_candidate.py'
+      - 'backend/recovery_checks/**'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
       - 'backend/src/**'
@@ -22,6 +23,7 @@ on:
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
       - 'backend/validate_source_candidate.py'
+      - 'backend/recovery_checks/**'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
       - 'backend/src/**'
@@ -77,6 +79,9 @@ jobs:
 
       - name: Validate source candidate policy tool
         run: python backend/validate_source_candidate.py --policy-only
+
+      - name: Regression-test source candidate validator
+        run: python backend/recovery_checks/test_validate_source_candidate.py
 
       - name: Enforce sanitized source admission boundary
         run: python backend/source_admission_contract.py
