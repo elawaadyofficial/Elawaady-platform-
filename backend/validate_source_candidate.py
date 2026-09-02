@@ -102,6 +102,18 @@ def validate_candidate(candidate: Path, policy: dict) -> list[str]:
         if not target.exists():
             errors.append(f"required runtime path missing: {required}")
 
+    # Keep admission aligned with production_check.py: directory placeholders are
+    # not enough. A candidate must contain actual SQL and executable test sources.
+    database_dir = candidate / "database"
+    sql_files = [path for path in database_dir.rglob("*.sql") if path.is_file() and path.stat().st_size > 0] if database_dir.exists() else []
+    if not sql_files:
+        errors.append("backend database schema/migrations contain no non-empty SQL files")
+
+    tests_dir = candidate / "tests"
+    test_files = [path for path in tests_dir.rglob("test_*.py") if path.is_file() and path.stat().st_size > 0] if tests_dir.exists() else []
+    if not test_files:
+        errors.append("backend test suite contains no non-empty test_*.py files")
+
     env_file = candidate / ".env"
     if env_file.exists():
         errors.append("real .env file is never admissible")
