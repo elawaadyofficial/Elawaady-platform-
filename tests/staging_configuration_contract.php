@@ -5,6 +5,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $contractPath = $root . '/config/staging-configuration-contract.json';
 $workflowPath = $root . '/.github/workflows/staging-configuration-contract.yml';
+$installerPath = $root . '/tools/install.php';
 
 function fail_staging_config(string $message): never
 {
@@ -163,6 +164,22 @@ foreach ($profiles as $profileName => $profile) {
         if ($value !== '' && !str_contains(strtolower($value), 'replace') && !str_contains(strtolower($value), 'example')) {
             fail_staging_config("{$exampleRel} appears to contain a non-placeholder value for {$name}");
         }
+    }
+}
+
+if (!is_file($installerPath)) {
+    fail_staging_config('installer is missing');
+}
+$installer = (string) file_get_contents($installerPath);
+foreach ([
+    "$allowedInstallEnvironments = ['development', 'staging'];",
+    'in_array($env, $allowedInstallEnvironments, true)',
+    'APP_ENV must be explicitly set to development or staging',
+    "host === 'elawaady.com'",
+    "str_ends_with(\$host, '.elawaady.com')",
+] as $installerGuard) {
+    if (!str_contains($installer, $installerGuard)) {
+        fail_staging_config("installer environment guard missing: {$installerGuard}");
     }
 }
 
