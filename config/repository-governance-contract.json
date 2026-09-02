@@ -2,6 +2,14 @@
   "schema_version": 1,
   "branch": "chatgpt/store-build",
   "production_deploy_allowed": false,
+  "branch_protection": {
+    "ready": false,
+    "mode": "planned",
+    "blockers": [
+      "backend_runtime_not_committed",
+      "required_checks_are_path_scoped"
+    ]
+  },
   "required_checks": [
     {
       "workflow_file": ".github/workflows/backend-safety.yml",
@@ -24,6 +32,7 @@
     "required_checks_must_exist": true,
     "workflow_names_must_match": true,
     "validation_workflows_must_be_read_only": true,
-    "live_deployment_must_remain_disabled": true
+    "live_deployment_must_remain_disabled": true,
+    "branch_protection_readiness_must_match_workflows": true
   }
 }
