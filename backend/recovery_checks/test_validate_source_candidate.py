@@ -92,6 +92,14 @@ def main() -> int:
         lambda root: (root / "README.tmp").write_text("unexpected\n", encoding="utf-8"),
         "path outside allowlist: README.tmp",
     )
+    assert_rejected(
+        lambda root: (root / "database" / "schema.sql").write_text("", encoding="utf-8"),
+        "backend database schema/migrations contain no non-empty SQL files",
+    )
+    assert_rejected(
+        lambda root: (root / "tests" / "test_smoke.py").write_text("", encoding="utf-8"),
+        "backend test suite contains no non-empty test_*.py files",
+    )
 
     print("backend source candidate validator regression checks: OK")
     return 0
