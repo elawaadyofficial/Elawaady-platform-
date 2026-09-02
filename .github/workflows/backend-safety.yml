@@ -24,7 +24,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Inspect bundled backend recovery payload
+      - name: Validate recovery/import state
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          audit = json.loads(Path('backend/source_recovery_audit.json').read_text())
+          imported = audit['sanitized_validation']['import_committed']
+          assert audit['production_deploy_allowed'] is False
+          assert audit['raw_source_import_allowed'] is False
+          if not imported:
+              assert audit['review_state'] == 'sanitization_required_before_import'
+              print('[OK] backend source remains intentionally uncommitted; raw recovery payload is blocked')
+          PY
+      - name: Inspect bundled backend recovery payload after approved import
+        if: ${{ hashFiles('backend/src/**') != '' }}
         run: python backend/source_bundle_inspect.py
 
   safety:
@@ -183,7 +198,7 @@ jobs:
               assert payload['status'] == 'bootstrap_incomplete'
               assert payload['environment'] == 'staging'
           PY
-      - name: Exercise production preflight with safe dummy MySQL config
+      - name: Verify production preflight matches backend import state
         env:
           APP_ENV: production
           APP_URL: https://elawaady.com
@@ -196,4 +211,16 @@ jobs:
           SESSION_SECRET: ci_session_secret_abcdefghijklmnopqrstuvwxyz012345
           ENCRYPTION_KEY: ci_encrypt_secret_abcdefghijklmnopqrstuvwxyz012345
           CORS_ALLOWED_ORIGINS: https://elawaady.com,https://www.elawaady.com
-        run: python backend/production_check.py
+        run: |
+          imported=$(python -c "import json; print(str(json.load(open('backend/source_recovery_audit.json'))['sanitized_validation']['import_committed']).lower())")
+          if [ "$imported" = "true" ]; then
+            python backend/production_check.py
+          else
+            set +e
+            output=$(python backend/production_check.py 2>&1)
+            status=$?
+            set -e
+            test "$status" -ne 0
+            echo "$output" | grep -q 'Backend source tree is incomplete'
+            echo '[OK] production preflight correctly blocks the intentionally incomplete backend tree'
+          fi
