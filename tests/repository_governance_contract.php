@@ -57,12 +57,25 @@ foreach ([
     'entrypoint' => 'index.php',
     'bootstrap_schema' => 'database.sql',
     'installer' => 'tools/install.php',
+    'preflight' => 'tools/preflight.php',
 ] as $field => $expectedPath) {
     if (($runtime[$field] ?? null) !== $expectedPath) {
         fail_repo_governance("runtime authority path changed unexpectedly: {$field}");
     }
     if (!is_file($root . '/' . $expectedPath) || filesize($root . '/' . $expectedPath) === 0) {
         fail_repo_governance("authoritative runtime file is missing or empty: {$expectedPath}");
+    }
+}
+
+$preflight = (string) file_get_contents($root . '/tools/preflight.php');
+foreach ([
+    "['development', 'staging']",
+    "elawaady.com",
+    "APP_ENCRYPTION_KEY",
+    "['mysqli', 'mbstring', 'openssl', 'curl', 'fileinfo']",
+] as $requiredGuard) {
+    if (!str_contains($preflight, $requiredGuard)) {
+        fail_repo_governance("PHP preflight guard is missing: {$requiredGuard}");
     }
 }
 
@@ -166,4 +179,4 @@ if (in_array('backend_runtime_not_committed', $blockers, true)) {
     fail_repo_governance('legacy Python backend import must not block the authoritative PHP runtime');
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; preflight=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
