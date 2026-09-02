@@ -85,6 +85,9 @@ jobs:
       - name: Regression-test source candidate validator
         run: python backend/recovery_checks/test_validate_source_candidate.py
 
+      - name: Regression-test backend release readiness states
+        run: python backend/recovery_checks/test_release_readiness.py
+
       - name: Enforce sanitized source admission boundary
         run: python backend/source_admission_contract.py
 
