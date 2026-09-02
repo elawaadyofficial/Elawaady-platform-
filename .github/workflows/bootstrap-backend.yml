@@ -9,6 +9,9 @@ on:
       - 'backend/source_recovery_audit.json'
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
+      - 'backend/validate_source_candidate.py'
+      - 'backend/release_readiness.py'
+      - 'backend/recovery_checks/**'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
       - 'backend/src/**'
@@ -20,6 +23,9 @@ on:
       - 'backend/source_recovery_audit.json'
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
+      - 'backend/validate_source_candidate.py'
+      - 'backend/release_readiness.py'
+      - 'backend/recovery_checks/**'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
       - 'backend/src/**'
@@ -73,8 +79,25 @@ jobs:
           assert 'database/platform_migrated.sql' in excluded
           PY
 
+      - name: Validate source candidate policy tool
+        run: python backend/validate_source_candidate.py --policy-only
+
+      - name: Regression-test source candidate validator
+        run: python backend/recovery_checks/test_validate_source_candidate.py
+
       - name: Enforce sanitized source admission boundary
         run: python backend/source_admission_contract.py
+
+      - name: Report backend release readiness without network access
+        run: |
+          set +e
+          output=$(python backend/release_readiness.py 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          test "$status" -ne 2
+          echo "$output" | grep -q '"network_access": false'
+          echo "$output" | grep -q '"production_access": false'
 
       - name: Prove historical recovery bundle remains incomplete
         run: |
