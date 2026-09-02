@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install PHP CLI and mysqli
         run: |
@@ -215,6 +217,60 @@ jobs:
             fi
           done
           echo 'Live-domain guard correctly rejected elawaady.com and its subdomains.'
+
+      - name: Reject committed live-domain deployment bypasses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          forbidden = (
+              'ELAWAADY_' + 'OWNER_DEPLOY_CONFIRM',
+              'yes-deploy-' + 'elawaady-now',
+          )
+          scan_roots = [Path('tools'), Path('config'), Path('scripts'), Path('backend')]
+          violations = []
+
+          for root in scan_roots:
+              if not root.exists():
+                  continue
+              for path in root.rglob('*'):
+                  if not path.is_file() or path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.zip', '.b64'}:
+                      continue
+                  try:
+                      text = path.read_text(encoding='utf-8')
+                  except UnicodeDecodeError:
+                      continue
+                  for token in forbidden:
+                      if token in text:
+                          violations.append(f'{path}: forbidden live-domain bypass token {token!r}')
+
+          if violations:
+              print('ERROR: committed live-domain deployment bypass detected:', file=sys.stderr)
+              for violation in violations:
+                  print(f'  - {violation}', file=sys.stderr)
+              raise SystemExit(1)
+
+          installer = Path('tools/install.php')
+          if installer.exists():
+              text = installer.read_text(encoding='utf-8')
+              required = (
+                  "$host === 'elawaady.com'",
+                  "str_ends_with($host, '.elawaady.com')",
+                  'Refusing to install: APP_URL points at the live elawaady.com domain.',
+                  'exit(1);',
+              )
+              missing = [token for token in required if token not in text]
+              if missing:
+                  print('ERROR: tools/install.php lost the absolute live-domain refusal contract:', file=sys.stderr)
+                  for token in missing:
+                      print(f'  - missing {token!r}', file=sys.stderr)
+                  raise SystemExit(1)
+
+          print('No committed live-domain deployment bypass is present.')
+          PY
 
       - name: Confirm lookalike host is not falsely blocked
         env:
