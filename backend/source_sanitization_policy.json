@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewed_archive_sha256": "5a70e678ebea9615c1ea078b8ad594bfa813385ca1f1a81daa396ae3fd21f0c3",
+  "purpose": "Deterministic admission policy for the quarantined backend recovery source. This policy is offline-only and grants no deployment capability.",
+  "production_deploy_allowed": false,
+  "raw_source_import_allowed": false,
+  "allowed_import_roots": [
+    "src/",
+    "database/schema.sql",
+    "database/migrations/",
+    "tests/",
+    "storage/uploads/.gitkeep",
+    "requirements.txt",
+    ".env.example",
+    "passenger_wsgi.py",
+    "wsgi.py"
+  ],
+  "excluded_paths": [
+    "backups/",
+    "database/platform_migrated.sql",
+    "build_complete_app.py",
+    "build_full_platform_ui.py",
+    "generate_complete_platform.py",
+    "generate_preview.py",
+    "elawaady_platform_live_preview.html",
+    "preview_test.html",
+    "index.html",
+    "docs/index.html"
+  ],
+  "required_remediations": [
+    {
+      "id": "relocatable_paths",
+      "rule": "No admitted file may contain /working_dir; runtime and migration paths must resolve from the repository/module location or environment configuration."
+    },
+    {
+      "id": "no_raw_database_payloads",
+      "rule": "Legacy database backups, generated database dumps, SQLite files, and database snapshots must not be committed. Tests must use synthetic fixtures only."
+    },
+    {
+      "id": "no_bootstrap_credentials",
+      "rule": "No fixed admin/bootstrap password, secret, API key, or credential may be admitted. Runtime credentials must come from environment-backed configuration."
+    },
+    {
+      "id": "safe_local_storage_default",
+      "rule": "Local media storage must use an environment-configurable or repository-relative path and retain path traversal protection."
+    }
+  ],
+  "required_validation": {
+    "python_compileall": true,
+    "pytest_expected_passed": 54,
+    "production_preflight": true,
+    "source_admission_contract": true
+  }
+}
