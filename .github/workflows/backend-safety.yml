@@ -4,13 +4,7 @@ on:
   push:
     branches:
       - chatgpt/store-build
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-safety.yml'
   pull_request:
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-safety.yml'
 
 permissions:
   contents: read
