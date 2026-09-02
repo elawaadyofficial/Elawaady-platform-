@@ -1,0 +1,29 @@
+name: Repository Governance Contract
+
+on:
+  push:
+    branches:
+      - chatgpt/store-build
+    paths:
+      - 'config/repository-governance-contract.json'
+      - 'tests/repository_governance_contract.php'
+      - '.github/workflows/*.yml'
+  pull_request:
+    paths:
+      - 'config/repository-governance-contract.json'
+      - 'tests/repository_governance_contract.php'
+      - '.github/workflows/*.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate repository governance contract
+        run: php tests/repository_governance_contract.php
