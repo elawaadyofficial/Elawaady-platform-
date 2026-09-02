@@ -13,30 +13,107 @@ import gzip
 import hashlib
 import io
 import json
+import re
 import sys
 import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_BUNDLE = ROOT / "source_bundle" / "part01.b64"
+PART_RE = re.compile(r"^part\d{2}\.b64$")
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def validate_manifest(bundle_path: Path) -> dict | None:
+    """Validate recovery manifest against the bundle directory on disk."""
+    manifest_path = bundle_path.parent / "manifest.json"
+    if not manifest_path.is_file():
+        return None
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"[FAIL] Invalid recovery manifest JSON: {exc}", file=sys.stderr)
+        return {}
+
+    if not isinstance(manifest, dict):
+        print("[FAIL] Recovery manifest must be a JSON object", file=sys.stderr)
+        return {}
+
+    try:
+        expected = int(manifest["expected_parts"])
+    except (KeyError, TypeError, ValueError):
+        print("[FAIL] Recovery manifest expected_parts must be a positive integer", file=sys.stderr)
+        return {}
+    if expected < 1:
+        print("[FAIL] Recovery manifest expected_parts must be >= 1", file=sys.stderr)
+        return {}
+
+    expected_names = [f"part{i:02d}.b64" for i in range(1, expected + 1)]
+    present = manifest.get("present_parts")
+    missing = manifest.get("missing_parts")
+    if not isinstance(present, list) or not all(isinstance(x, str) for x in present):
+        print("[FAIL] Recovery manifest present_parts must be a string list", file=sys.stderr)
+        return {}
+    if not isinstance(missing, list) or not all(isinstance(x, str) for x in missing):
+        print("[FAIL] Recovery manifest missing_parts must be a string list", file=sys.stderr)
+        return {}
+    if len(set(present)) != len(present) or len(set(missing)) != len(missing):
+        print("[FAIL] Recovery manifest contains duplicate part entries", file=sys.stderr)
+        return {}
+    if set(present) & set(missing):
+        print("[FAIL] Recovery manifest lists a part as both present and missing", file=sys.stderr)
+        return {}
+    if set(present) | set(missing) != set(expected_names):
+        print("[FAIL] Recovery manifest part inventory does not match expected_parts", file=sys.stderr)
+        return {}
+
+    actual = sorted(
+        path.name
+        for path in bundle_path.parent.iterdir()
+        if path.is_file() and PART_RE.match(path.name)
+    )
+    if sorted(present) != actual:
+        print(
+            "[FAIL] Recovery manifest present_parts does not match files on disk: "
+            f"manifest={sorted(present)} actual={actual}",
+            file=sys.stderr,
+        )
+        return {}
+
+    reference_only = manifest.get("reference_only")
+    state = manifest.get("state")
+    if missing and reference_only is not True:
+        print("[FAIL] Incomplete recovery bundle must remain reference_only=true", file=sys.stderr)
+        return {}
+    if state == "incomplete_reference_only" and (not missing or reference_only is not True):
+        print("[FAIL] incomplete_reference_only state is inconsistent with bundle completeness", file=sys.stderr)
+        return {}
+    if not missing and state == "incomplete_reference_only":
+        print("[FAIL] Complete recovery bundle cannot retain incomplete_reference_only state", file=sys.stderr)
+        return {}
+
+    origin_commit = manifest.get("origin_commit")
+    if origin_commit is not None and (not isinstance(origin_commit, str) or not COMMIT_RE.fullmatch(origin_commit)):
+        print("[FAIL] Recovery manifest origin_commit must be a full 40-character lowercase SHA", file=sys.stderr)
+        return {}
+
+    return manifest
+
+
 def expected_parts(bundle_path: Path, explicit: int | None) -> int:
     if explicit is not None:
         return explicit
-    manifest_path = bundle_path.parent / "manifest.json"
-    if manifest_path.is_file():
-        try:
-            value = int(json.loads(manifest_path.read_text(encoding="utf-8"))["expected_parts"])
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            print(f"[FAIL] Invalid recovery manifest: {exc}", file=sys.stderr)
-            return -1
-        return value
-    return 1
+    manifest = validate_manifest(bundle_path)
+    if manifest is None:
+        return 1
+    if not manifest:
+        return -1
+    return int(manifest["expected_parts"])
 
 
 def read_bundle(bundle_path: Path, part_count: int) -> bytes | None:
@@ -64,7 +141,15 @@ def read_bundle(bundle_path: Path, part_count: int) -> bytes | None:
 
 
 def inspect(bundle_path: Path, expected: list[str], explicit_parts: int | None) -> int:
-    part_count = expected_parts(bundle_path, explicit_parts)
+    if explicit_parts is None:
+        part_count = expected_parts(bundle_path, explicit_parts)
+    else:
+        # Even explicit inspection must reject a contradictory on-disk manifest.
+        manifest = validate_manifest(bundle_path)
+        if manifest == {}:
+            return 1
+        part_count = explicit_parts
+
     if part_count < 1:
         return 1
     encoded = read_bundle(bundle_path, part_count)
