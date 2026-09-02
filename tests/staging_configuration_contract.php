@@ -52,6 +52,21 @@ if (($rules['example_app_env_must_not_equal'] ?? null) !== 'production') {
     fail_staging_config('example APP_ENV production guard changed');
 }
 
+$allowedExampleEnvironments = $rules['example_app_env_allowed'] ?? null;
+if (!is_array($allowedExampleEnvironments) || $allowedExampleEnvironments === []) {
+    fail_staging_config('allowed example APP_ENV values are missing');
+}
+$allowedExampleEnvironments = array_values(array_unique(array_map(
+    static fn ($value): string => strtolower(trim((string) $value)),
+    $allowedExampleEnvironments
+)));
+if ($allowedExampleEnvironments !== ['development', 'staging']) {
+    fail_staging_config('example APP_ENV allowlist must remain development/staging only');
+}
+if (in_array('production', $allowedExampleEnvironments, true)) {
+    fail_staging_config('production must never be allowed in example APP_ENV values');
+}
+
 $forbiddenLiveHosts = $rules['forbidden_live_hosts'] ?? null;
 if (!is_array($forbiddenLiveHosts) || $forbiddenLiveHosts === []) {
     fail_staging_config('forbidden live hosts are missing');
@@ -99,11 +114,15 @@ foreach ($profiles as $profileName => $profile) {
         }
     }
 
-    if (preg_match('/^APP_ENV=(.*)$/m', $example, $appEnvMatch)) {
-        $appEnv = strtolower(trim($appEnvMatch[1], " \t\n\r\0\x0B\"'"));
-        if ($appEnv === strtolower((string) $rules['example_app_env_must_not_equal'])) {
-            fail_staging_config("{$exampleRel} must not default APP_ENV to production");
-        }
+    if (!preg_match('/^APP_ENV=(.*)$/m', $example, $appEnvMatch)) {
+        fail_staging_config("{$exampleRel} must document APP_ENV");
+    }
+    $appEnv = strtolower(trim($appEnvMatch[1], " \t\n\r\0\x0B\"'"));
+    if (!in_array($appEnv, $allowedExampleEnvironments, true)) {
+        fail_staging_config("{$exampleRel} APP_ENV is not in the non-production allowlist: {$appEnv}");
+    }
+    if ($appEnv === strtolower((string) $rules['example_app_env_must_not_equal'])) {
+        fail_staging_config("{$exampleRel} must not default APP_ENV to production");
     }
 
     if (preg_match('/^APP_URL=(.*)$/m', $example, $appUrlMatch)) {
