@@ -30,7 +30,7 @@
   "required_remediations": [
     {
       "id": "relocatable_paths",
-      "rule": "No admitted file may contain /working_dir; runtime and migration paths must resolve from the repository/module location or environment configuration."
+      "rule": "No admitted file may contain the legacy absolute workspace prefix; runtime and migration paths must resolve from the repository/module location or environment configuration."
     },
     {
       "id": "no_raw_database_payloads",
