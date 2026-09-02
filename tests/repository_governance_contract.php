@@ -50,6 +50,7 @@ if (!is_array($checks) || $checks === []) {
 $seenFiles = [];
 $seenNames = [];
 $pathScopedChecks = [];
+$missingPullRequestChecks = [];
 foreach ($checks as $check) {
     if (!is_array($check)) {
         fail_repo_governance('invalid required-check entry');
@@ -85,6 +86,9 @@ foreach ($checks as $check) {
     if (preg_match('/^\s+paths:\s*$/m', $workflow) === 1 || preg_match('/^\s+paths-ignore:\s*$/m', $workflow) === 1) {
         $pathScopedChecks[] = $name;
     }
+    if (preg_match('/^\s{2}pull_request:\s*$/m', $workflow) !== 1) {
+        $missingPullRequestChecks[] = $name;
+    }
 }
 
 foreach ([
@@ -96,6 +100,10 @@ foreach ([
     if (!isset($seenNames[$requiredName])) {
         fail_repo_governance("core required check missing: {$requiredName}");
     }
+}
+
+if ($missingPullRequestChecks !== []) {
+    fail_repo_governance('required checks must report on every pull request: ' . implode(', ', $missingPullRequestChecks));
 }
 
 $branchProtection = $contract['branch_protection'] ?? null;
@@ -116,8 +124,11 @@ if (!is_array($blockers)) {
 if ($ready && $pathScopedChecks !== []) {
     fail_repo_governance('branch protection cannot be ready while required checks are path-scoped: ' . implode(', ', $pathScopedChecks));
 }
-if (!$ready && $pathScopedChecks !== [] && !in_array('required_checks_are_path_scoped', $blockers, true)) {
+if ($pathScopedChecks !== [] && !in_array('required_checks_are_path_scoped', $blockers, true)) {
     fail_repo_governance('path-scoped required checks must be recorded as a branch protection blocker');
+}
+if ($pathScopedChecks === [] && in_array('required_checks_are_path_scoped', $blockers, true)) {
+    fail_repo_governance('path-scoped blocker is stale because all required checks now report on every pull request');
 }
 if (!$ready && !in_array('backend_runtime_not_committed', $blockers, true)) {
     fail_repo_governance('backend runtime import blocker must remain explicit until source admission completes');
