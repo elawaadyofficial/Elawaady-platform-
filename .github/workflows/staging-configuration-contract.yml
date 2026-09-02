@@ -4,14 +4,7 @@ on:
   push:
     branches:
       - chatgpt/store-build
-    paths:
-      - '.env.example'
-      - 'backend/.env.example'
-      - 'backend/production_check.py'
-      - 'db_connect.php'
-      - 'config/staging-configuration-contract.json'
-      - 'tests/staging_configuration_contract.php'
-      - '.github/workflows/staging-configuration-contract.yml'
+  pull_request:
   workflow_dispatch:
 
 permissions:
