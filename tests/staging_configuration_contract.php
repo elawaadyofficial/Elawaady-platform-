@@ -48,6 +48,19 @@ foreach ([
 if (($rules['staging_app_env_must_equal'] ?? null) !== 'staging') {
     fail_staging_config('staging APP_ENV requirement changed');
 }
+if (($rules['example_app_env_must_not_equal'] ?? null) !== 'production') {
+    fail_staging_config('example APP_ENV production guard changed');
+}
+
+$forbiddenLiveHosts = $rules['forbidden_live_hosts'] ?? null;
+if (!is_array($forbiddenLiveHosts) || $forbiddenLiveHosts === []) {
+    fail_staging_config('forbidden live hosts are missing');
+}
+foreach (['elawaady.com', '.elawaady.com'] as $requiredHostRule) {
+    if (!in_array($requiredHostRule, $forbiddenLiveHosts, true)) {
+        fail_staging_config("required live-host guard missing: {$requiredHostRule}");
+    }
+}
 
 $profiles = $contract['profiles'] ?? null;
 if (!is_array($profiles) || $profiles === []) {
@@ -83,6 +96,31 @@ foreach ($profiles as $profileName => $profile) {
     foreach (['ELAWAADY_OWNER_DEPLOY_CONFIRM', 'yes-deploy-elawaady-now'] as $forbiddenOverride) {
         if (str_contains($example, $forbiddenOverride) || str_contains($runtime, $forbiddenOverride)) {
             fail_staging_config("live deployment override must not exist in {$profileName}: {$forbiddenOverride}");
+        }
+    }
+
+    if (preg_match('/^APP_ENV=(.*)$/m', $example, $appEnvMatch)) {
+        $appEnv = strtolower(trim($appEnvMatch[1], " \t\n\r\0\x0B\"'"));
+        if ($appEnv === strtolower((string) $rules['example_app_env_must_not_equal'])) {
+            fail_staging_config("{$exampleRel} must not default APP_ENV to production");
+        }
+    }
+
+    if (preg_match('/^APP_URL=(.*)$/m', $example, $appUrlMatch)) {
+        $appUrl = trim($appUrlMatch[1], " \t\n\r\0\x0B\"'");
+        $host = strtolower((string) parse_url($appUrl, PHP_URL_HOST));
+        if ($host === '') {
+            fail_staging_config("{$exampleRel} APP_URL must be an absolute URL");
+        }
+        foreach ($forbiddenLiveHosts as $forbiddenHost) {
+            if (!is_string($forbiddenHost) || $forbiddenHost === '') {
+                fail_staging_config('invalid forbidden live-host rule');
+            }
+            $forbiddenHost = strtolower($forbiddenHost);
+            $isSuffixRule = str_starts_with($forbiddenHost, '.');
+            if ((!$isSuffixRule && $host === $forbiddenHost) || ($isSuffixRule && str_ends_with($host, $forbiddenHost))) {
+                fail_staging_config("{$exampleRel} APP_URL points at forbidden live host: {$host}");
+            }
         }
     }
 
