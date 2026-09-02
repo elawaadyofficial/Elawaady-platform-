@@ -45,6 +45,11 @@
     "contract_stores_variable_names_only": true,
     "secret_values_must_not_be_committed": true,
     "staging_app_env_must_equal": "staging",
+    "example_app_env_must_not_equal": "production",
+    "forbidden_live_hosts": [
+      "elawaady.com",
+      ".elawaady.com"
+    ],
     "runtime_values_are_supplied_outside_git": true,
     "production_connectivity_is_not_part_of_validation": true
   }
