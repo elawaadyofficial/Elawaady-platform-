@@ -110,6 +110,12 @@ jobs:
                 break
               fi
 
+              # Backend safety must always be proven on the exact candidate SHA.
+              # Reusing an ancestor run here could certify source that changed later.
+              if [ "$WORKFLOW_NAME" = "Backend production safety gate" ]; then
+                continue
+              fi
+
               STATUS="$(gh api "repos/$REPO/compare/$RUN_SHA...$CANDIDATE_SHA" --jq '.status' 2>/dev/null || true)"
               if [ "$STATUS" = "ahead" ] || [ "$STATUS" = "identical" ]; then
                 MATCH="$(jq -n --argjson id "$RUN_ID" --arg sha "$RUN_SHA" --arg conclusion "$RUN_CONCLUSION" --arg url "$RUN_URL" '{run_id:$id,head_sha:$sha,conclusion:$conclusion,url:$url}')"
@@ -188,7 +194,8 @@ jobs:
               and .deployment_mode == "validation_only"
               and .production_deploy_allowed == false
               and ((.accepted_workflow_runs | keys | sort) == ($required | sort))
-              and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))' \
+              and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))
+              and (.accepted_workflow_runs["Backend production safety gate"].head_sha == $sha)' \
             release-candidate-handoff.json >/dev/null
 
           cat release-candidate-handoff.json
@@ -207,4 +214,5 @@ jobs:
         run: |
           echo "Release candidate validation passed for $CANDIDATE_SHA"
           echo "An immutable handoff record with accepted CI run IDs was uploaded as a CI artifact."
+          echo "Backend production safety was proven on the exact candidate SHA."
           echo "This workflow validates readiness only. It does not deploy to staging or production."
