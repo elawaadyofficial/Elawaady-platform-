@@ -54,20 +54,21 @@ $php = escapeshellarg(PHP_BINARY);
 
 step('1. Environment');
 
-$env = strtolower((string) (getenv('APP_ENV') ?: ''));
-$url = (string) (getenv('APP_URL') ?: '');
+$env = strtolower(trim((string) (getenv('APP_ENV') ?: '')));
+$url = trim((string) (getenv('APP_URL') ?: ''));
 
 printf("  APP_ENV  %s\n", $env !== '' ? $env : '(not set)');
 printf("  APP_URL  %s\n", $url !== '' ? $url : '(not set)');
 printf("  DB_NAME  %s\n", (string) (getenv('DB_NAME') ?: '(not set)'));
 printf("  encryption key %s\n", getenv('APP_ENCRYPTION_KEY') ? 'set' : 'NOT SET — provider API keys cannot be stored');
 
-if ($env === 'production') {
-    fwrite(STDERR, "\nRefusing to install against production.\n");
+$allowedInstallEnvironments = ['development', 'staging'];
+if (!in_array($env, $allowedInstallEnvironments, true)) {
+    fwrite(STDERR, "\nRefusing to install: APP_ENV must be explicitly set to development or staging.\n");
     exit(1);
 }
 
-// Never let a staging install point at the live store.
+// Never let a staging/development install point at the live store.
 if ($url !== '') {
     $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?: ''));
     if ($host === 'elawaady.com' || str_ends_with($host, '.elawaady.com')) {
