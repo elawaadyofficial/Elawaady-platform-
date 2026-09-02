@@ -22,10 +22,10 @@ FORBIDDEN_SUFFIXES = {
 }
 FORBIDDEN_BASENAMES = {".env", "id_rsa", "id_ed25519"}
 FORBIDDEN_TEXT_PATTERNS = {
-    "legacy_workspace_path": re.compile(r"/working_dir(?:/|\\b)"),
-    "live_store_url": re.compile(r"https?://(?:www\\.)?elawaady\\.com(?:/|\\b)", re.I),
-    "fixed_password_assignment": re.compile(r"(?i)(?:password|passwd|pwd)\\s*=\\s*['\"][^'\"]{6,}['\"]"),
-    "fixed_secret_assignment": re.compile(r"(?i)(?:secret|api[_-]?key|token)\\s*=\\s*['\"][^'\"]{8,}['\"]"),
+    "legacy_workspace_path": re.compile(r"/working_dir(?:/|\b)"),
+    "live_store_url": re.compile(r"https?://(?:www\.)?elawaady\.com(?:/|\b)", re.I),
+    "fixed_password_assignment": re.compile(r"(?i)(?:password|passwd|pwd)\s*=\s*['\"][^'\"]{6,}['\"]"),
+    "fixed_secret_assignment": re.compile(r"(?i)(?:secret|api[_-]?key|token)\s*=\s*['\"][^'\"]{8,}['\"]"),
 }
 REQUIRED_RUNTIME_PATHS = {
     "src/Api/App.py",
@@ -70,7 +70,6 @@ def validate_candidate(candidate: Path, policy: dict) -> list[str]:
 
     allowed_roots = list(policy["allowed_import_roots"])
     excluded = [item.rstrip("/") for item in policy["excluded_paths"]]
-    seen: set[str] = set()
 
     for path in candidate.rglob("*"):
         rel = normalize_rel(path, candidate)
@@ -80,7 +79,6 @@ def validate_candidate(candidate: Path, policy: dict) -> list[str]:
         if path.is_dir():
             continue
 
-        seen.add(rel)
         pure = PurePosixPath(rel)
         if not allowed_by_policy(rel, allowed_roots):
             errors.append(f"path outside allowlist: {rel}")
