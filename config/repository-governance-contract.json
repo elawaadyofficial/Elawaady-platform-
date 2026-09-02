@@ -6,8 +6,7 @@
     "ready": false,
     "mode": "planned",
     "blockers": [
-      "backend_runtime_not_committed",
-      "required_checks_are_path_scoped"
+      "backend_runtime_not_committed"
     ]
   },
   "required_checks": [
