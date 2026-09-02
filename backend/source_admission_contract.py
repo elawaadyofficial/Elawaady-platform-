@@ -2,7 +2,9 @@
 
 This check is intentionally offline and deployment-free. It allows the historical
 `source_bundle/` quarantine to remain for audit purposes, but rejects risky
-recovery artifacts anywhere else under `backend/`.
+recovery artifacts from runtime/admitted backend source. Governance files that
+encode the forbidden patterns themselves are excluded from content scanning to
+avoid self-matches; their invariants are validated separately by CI.
 """
 from __future__ import annotations
 
@@ -12,7 +14,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 AUDIT_PATH = ROOT / "source_recovery_audit.json"
+POLICY_PATH = ROOT / "source_sanitization_policy.json"
 QUARANTINE = ROOT / "source_bundle"
+CONTROL_FILES = {
+    Path(__file__).resolve(),
+    AUDIT_PATH.resolve(),
+    POLICY_PATH.resolve(),
+}
 
 REQUIRED_ADMITTED_PATHS = (
     ROOT / "src/Api/App.py",
@@ -28,7 +36,7 @@ TEXT_SUFFIXES = {".py", ".json", ".yml", ".yaml", ".md", ".txt", ".sql", ".ini",
 
 # Recovery-source findings that must not re-enter the reviewed source tree.
 FORBIDDEN_TEXT_PATTERNS = (
-    re.compile(r"/working_dir(?:/|\\b)"),
+    re.compile(r"/working_dir(?:/|\b)"),
     re.compile(r"(?i)bootstrap_(?:password|secret)\s*=\s*['\"][^'\"]+['\"]"),
 )
 
@@ -41,10 +49,14 @@ def in_quarantine(path: Path) -> bool:
         return False
 
 
+def is_control_file(path: Path) -> bool:
+    return path.resolve() in CONTROL_FILES
+
+
 def scan_tree() -> list[str]:
     problems: list[str] = []
     for path in ROOT.rglob("*"):
-        if not path.is_file() or in_quarantine(path):
+        if not path.is_file() or in_quarantine(path) or is_control_file(path):
             continue
 
         relative = path.relative_to(ROOT).as_posix()
@@ -71,8 +83,16 @@ def scan_tree() -> list[str]:
 def validate_admission_state() -> list[str]:
     problems: list[str] = []
     audit = json.loads(AUDIT_PATH.read_text(encoding="utf-8"))
+    policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
     source_present = any((ROOT / "src").glob("**/*.py")) if (ROOT / "src").exists() else False
     import_committed = bool(audit.get("sanitized_validation", {}).get("import_committed"))
+
+    if policy.get("production_deploy_allowed") is not False:
+        problems.append("source sanitization policy must keep production_deploy_allowed=false")
+    if policy.get("raw_source_import_allowed") is not False:
+        problems.append("source sanitization policy must keep raw_source_import_allowed=false")
+    if policy.get("reviewed_archive_sha256") != audit.get("reviewed_source", {}).get("sha256"):
+        problems.append("source sanitization policy archive checksum does not match recovery audit")
 
     if source_present:
         missing = [p.relative_to(ROOT).as_posix() for p in REQUIRED_ADMITTED_PATHS if not p.exists()]
