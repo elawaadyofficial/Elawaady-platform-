@@ -23,7 +23,7 @@ spec.loader.exec_module(validator)
 def write_minimal_candidate(root: Path) -> None:
     files = {
         "src/Api/App.py": "def app():\n    return 'ok'\n",
-        "src/WsgiAdapter.py": "def adapt(app):\n    return app\n",
+        "src/Api/WsgiAdapter.py": "def adapt(app):\n    return app\n",
         "src/Core/DatabaseFactory.py": "class DatabaseFactory:\n    pass\n",
         "database/schema.sql": "CREATE TABLE example (id INTEGER PRIMARY KEY);\n",
         "tests/test_smoke.py": "def test_smoke():\n    assert True\n",
@@ -74,6 +74,13 @@ def main() -> int:
     assert_rejected(
         lambda root: (root / "src" / "Api" / "App.py").unlink(),
         "required runtime path missing: src/Api/App.py",
+    )
+    assert_rejected(
+        lambda root: (
+            (root / "src" / "Api" / "WsgiAdapter.py").unlink(),
+            (root / "src" / "WsgiAdapter.py").write_text("def adapt(app):\n    return app\n", encoding="utf-8"),
+        ),
+        "required runtime path missing: src/Api/WsgiAdapter.py",
     )
     assert_rejected(
         lambda root: (root / "README.tmp").write_text("unexpected\n", encoding="utf-8"),
