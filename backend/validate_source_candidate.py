@@ -23,7 +23,7 @@ FORBIDDEN_SUFFIXES = {
 FORBIDDEN_BASENAMES = {".env", "id_rsa", "id_ed25519"}
 FORBIDDEN_TEXT_PATTERNS = {
     "legacy_workspace_path": re.compile(r"/working_dir(?:/|\b)"),
-    "live_store_url": re.compile(r"https?://(?:www\.)?elawaady\.com(?:/|\b)", re.I),
+    "live_store_url": re.compile(r"https?://(?:[a-z0-9-]+\.)*elawaady\.com(?:[/:?#]|\b)", re.I),
     "fixed_password_assignment": re.compile(r"(?i)(?:password|passwd|pwd)\s*=\s*['\"][^'\"]{6,}['\"]"),
     "fixed_secret_assignment": re.compile(r"(?i)(?:secret|api[_-]?key|token)\s*=\s*['\"][^'\"]{8,}['\"]"),
 }
