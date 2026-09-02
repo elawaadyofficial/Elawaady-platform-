@@ -80,6 +80,12 @@ foreach ($profiles as $profileName => $profile) {
     $example = (string) file_get_contents($root . '/' . $exampleRel);
     $runtime = (string) file_get_contents($root . '/' . $runtimeRel);
 
+    foreach (['ELAWAADY_OWNER_DEPLOY_CONFIRM', 'yes-deploy-elawaady-now'] as $forbiddenOverride) {
+        if (str_contains($example, $forbiddenOverride) || str_contains($runtime, $forbiddenOverride)) {
+            fail_staging_config("live deployment override must not exist in {$profileName}: {$forbiddenOverride}");
+        }
+    }
+
     foreach ($required as $name) {
         if (!is_string($name) || !preg_match('/^[A-Z_][A-Z0-9_]*$/', $name)) {
             fail_staging_config("invalid environment variable name in {$profileName}");
