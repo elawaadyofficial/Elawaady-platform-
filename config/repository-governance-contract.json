@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "branch": "chatgpt/store-build",
+  "production_deploy_allowed": false,
+  "required_checks": [
+    {
+      "workflow_file": ".github/workflows/backend-safety.yml",
+      "workflow_name": "Backend production safety gate"
+    },
+    {
+      "workflow_file": ".github/workflows/storefront-safety.yml",
+      "workflow_name": "Storefront Safety"
+    },
+    {
+      "workflow_file": ".github/workflows/platform-integration.yml",
+      "workflow_name": "Platform Integration"
+    },
+    {
+      "workflow_file": ".github/workflows/staging-configuration-contract.yml",
+      "workflow_name": "Staging Configuration Contract"
+    }
+  ],
+  "rules": {
+    "required_checks_must_exist": true,
+    "workflow_names_must_match": true,
+    "validation_workflows_must_be_read_only": true,
+    "live_deployment_must_remain_disabled": true
+  }
+}
