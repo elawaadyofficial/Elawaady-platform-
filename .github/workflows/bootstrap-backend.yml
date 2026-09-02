@@ -9,6 +9,7 @@ on:
       - 'backend/source_recovery_audit.json'
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
+      - 'backend/validate_source_candidate.py'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
       - 'backend/src/**'
@@ -20,6 +21,7 @@ on:
       - 'backend/source_recovery_audit.json'
       - 'backend/source_sanitization_policy.json'
       - 'backend/source_admission_contract.py'
+      - 'backend/validate_source_candidate.py'
       - 'backend/source_bundle/**'
       - 'backend/source_bundle_inspect.py'
       - 'backend/src/**'
@@ -72,6 +74,9 @@ jobs:
           assert 'backups/' in excluded
           assert 'database/platform_migrated.sql' in excluded
           PY
+
+      - name: Validate source candidate policy tool
+        run: python backend/validate_source_candidate.py --policy-only
 
       - name: Enforce sanitized source admission boundary
         run: python backend/source_admission_contract.py
