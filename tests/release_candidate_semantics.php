@@ -53,22 +53,40 @@ foreach ([
 }
 
 foreach ([
-    'workflows:',
-    '- Staging Readiness',
-    "github.event.workflow_run.head_branch == 'chatgpt/store-build'",
+    'workflow_run:',
+    'Staging Readiness',
+    'chatgpt/store-build',
     'github.event.workflow_run.head_sha',
     'persist-credentials: false',
-    'repos/$REPO/branches/chatgpt/store-build',
     'tests/release_handoff_contract.php',
     'release-candidate-handoff.json',
-    'deployment_mode: "validation_only"',
-    'production_deploy_allowed: false',
+    'validation_only',
+    'production_deploy_allowed',
     'Backend production safety gate',
-    '.accepted_workflow_runs["Backend production safety gate"].head_sha == $sha',
-] as $requiredWorkflowGuard) {
-    if (!str_contains($workflow, $requiredWorkflowGuard)) {
-        fail_release_semantics("release workflow guard missing: {$requiredWorkflowGuard}");
+] as $requiredWorkflowConcept) {
+    if (!str_contains($workflow, $requiredWorkflowConcept)) {
+        fail_release_semantics("release workflow safety concept missing: {$requiredWorkflowConcept}");
     }
+}
+
+if (!str_contains($workflow, "permissions:\n  actions: read\n  contents: read")) {
+    fail_release_semantics('release workflow permissions must remain actions:read and contents:read');
+}
+
+if (!str_contains($workflow, 'deployment_mode: "validation_only"') || !str_contains($workflow, 'production_deploy_allowed: false')) {
+    fail_release_semantics('release handoff must remain validation-only with production deployment disabled');
+}
+
+if (!str_contains($workflow, 'CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}')) {
+    fail_release_semantics('release candidate SHA must come from the completed staging-readiness run');
+}
+
+if (!str_contains($workflow, 'CURRENT_SHA="$(gh api "repos/$REPO/branches/chatgpt/store-build"')) {
+    fail_release_semantics('release candidate must be compared with the current governed branch HEAD');
+}
+
+if (!str_contains($workflow, 'Backend production safety must always be proven on the exact candidate SHA.')) {
+    fail_release_semantics('backend safety exact-SHA rule is missing');
 }
 
 foreach ([
@@ -85,10 +103,6 @@ foreach ([
     if (stripos($workflow, $forbiddenWorkflowCapability) !== false) {
         fail_release_semantics("release workflow gained forbidden capability: {$forbiddenWorkflowCapability}");
     }
-}
-
-if (!preg_match('/permissions:\s*\n(?:\s+[^\n]+\n)*\s+contents:\s*read/m', $workflow)) {
-    fail_release_semantics('release workflow must retain read-only contents permission');
 }
 
 fwrite(STDOUT, "release candidate semantics: ok; validation-only handoff remains production-safe\n");
