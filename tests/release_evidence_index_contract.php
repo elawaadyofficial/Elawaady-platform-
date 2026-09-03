@@ -20,7 +20,7 @@ $required = [
     'staging-final-handoff-$CANDIDATE_SHA',
     'release-integrity-$CANDIDATE_SHA',
     'release-candidate-$CANDIDATE_SHA',
-    'REQUIRED_WORKFLOWS_JSON="$(jq -c \' .required_workflows\' config/staging-release-manifest.json)"',
+    'REQUIRED_WORKFLOWS_JSON="$(jq -c \'.required_workflows\' config/staging-release-manifest.json)"',
     '(.accepted_workflow_runs | keys | sort) == ($required | sort)',
     '[.accepted_workflow_runs[].head_sha] | all(. == $sha)',
     'staging_validation_evidence_complete',
