@@ -13,6 +13,8 @@ $requiredMarkers = [
     'contents: read',
     'candidate_tree_sha',
     'handoff_sha256',
+    'staging_manifest_sha256',
+    'MANIFEST_SHA256="$(sha256sum "$MANIFEST"',
     'migration_checksum_sha256',
     'source_release_candidate_run_id',
     'source_handoff_artifact_id',
