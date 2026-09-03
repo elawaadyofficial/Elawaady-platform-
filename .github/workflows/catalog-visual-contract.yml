@@ -4,17 +4,7 @@ on:
   push:
     branches:
       - chatgpt/store-build
-    paths:
-      - 'categories.php'
-      - 'subcategories.php'
-      - 'exd-layouts.css'
-      - '.github/workflows/catalog-visual-contract.yml'
   pull_request:
-    paths:
-      - 'categories.php'
-      - 'subcategories.php'
-      - 'exd-layouts.css'
-      - '.github/workflows/catalog-visual-contract.yml'
 
 permissions:
   contents: read
