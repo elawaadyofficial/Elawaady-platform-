@@ -243,4 +243,37 @@ if (in_array('backend_runtime_not_committed', $blockers, true)) {
     fail_repo_governance('legacy Python backend import must not block the authoritative PHP runtime');
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; migration runner=locked; preflights=locked; staging rehearsal=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
+$deploymentChecklist = (string) file_get_contents($root . '/DEPLOYMENT_CHECKLIST.md');
+$releaseCandidateWorkflow = (string) file_get_contents($root . '/.github/workflows/release-candidate.yml');
+foreach ([
+    '## Environment',
+    '## Database',
+    '## Storefront QA',
+    '## Performance',
+    '## Security / Release Gate',
+    '## Release Process',
+    'Deploy to staging first',
+    'Only then schedule production release separately',
+    'No force-push, reset, or direct production deployment from `chatgpt/store-build`',
+] as $requiredReleaseChecklistGuard) {
+    if (!str_contains($deploymentChecklist, $requiredReleaseChecklistGuard)) {
+        fail_repo_governance("deployment checklist release guard is missing: {$requiredReleaseChecklistGuard}");
+    }
+    if (!str_contains($releaseCandidateWorkflow, $requiredReleaseChecklistGuard)) {
+        fail_repo_governance("Release Candidate no longer validates checklist guard: {$requiredReleaseChecklistGuard}");
+    }
+}
+foreach ([
+    "head_branch == 'chatgpt/store-build'",
+    'Verify candidate is current branch HEAD',
+    'Guard against committed environment files and database dumps',
+    'Backend production safety must always be proven on the exact candidate SHA.',
+    'deployment_mode: "validation_only"',
+    'production_deploy_allowed: false',
+] as $requiredReleaseWorkflowGuard) {
+    if (!str_contains($releaseCandidateWorkflow, $requiredReleaseWorkflowGuard)) {
+        fail_repo_governance("Release Candidate safety guard is missing: {$requiredReleaseWorkflowGuard}");
+    }
+}
+
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; migration runner=locked; preflights=locked; staging rehearsal=locked; release candidate=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
