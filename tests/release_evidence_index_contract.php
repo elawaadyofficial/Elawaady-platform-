@@ -15,13 +15,14 @@ $required = [
     'actions: read',
     'contents: read',
     "head_branch == 'chatgpt/store-build'",
-    "head_branch == 'chatgpt/store-build'",
     'persist-credentials: false',
     'release-evidence-index-${{ github.event.workflow_run.head_sha }}',
     'staging-final-handoff-$CANDIDATE_SHA',
     'release-integrity-$CANDIDATE_SHA',
     'release-candidate-$CANDIDATE_SHA',
-    '.accepted_workflow_runs | type == "object" and length == 8',
+    'REQUIRED_WORKFLOWS_JSON="$(jq -c \' .required_workflows\' config/staging-release-manifest.json)"',
+    '(.accepted_workflow_runs | keys | sort) == ($required | sort)',
+    '[.accepted_workflow_runs[].head_sha] | all(. == $sha)',
     'staging_validation_evidence_complete',
     'deployment_mode: "validation_only"',
     'production_deploy_allowed: false',
@@ -45,6 +46,7 @@ $forbidden = [
     'ssh ',
     'scp ',
     'rsync ',
+    'length == 8',
 ];
 
 foreach ($forbidden as $needle) {
