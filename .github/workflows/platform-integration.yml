@@ -63,6 +63,9 @@ jobs:
       - name: Read-only PHP staging preflight
         run: php tools/preflight.php
 
+      - name: Offline migration readiness preflight
+        run: php tools/migration_preflight.php
+
       - name: Preflight refuses the live store domain
         shell: bash
         run: |
