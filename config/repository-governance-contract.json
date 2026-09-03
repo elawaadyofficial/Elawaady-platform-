@@ -21,24 +21,29 @@
   "required_checks": [
     {
       "workflow_file": ".github/workflows/backend-safety.yml",
-      "workflow_name": "Backend production safety gate"
+      "workflow_name": "Backend production safety gate",
+      "check_name": "safety"
     },
     {
       "workflow_file": ".github/workflows/storefront-safety.yml",
-      "workflow_name": "Storefront Safety"
+      "workflow_name": "Storefront Safety",
+      "check_name": "PHP storefront syntax and staging preflight"
     },
     {
       "workflow_file": ".github/workflows/platform-integration.yml",
-      "workflow_name": "Platform Integration"
+      "workflow_name": "Platform Integration",
+      "check_name": "Authentication, dashboard, orders, suppliers and mediation"
     },
     {
       "workflow_file": ".github/workflows/staging-configuration-contract.yml",
-      "workflow_name": "Staging Configuration Contract"
+      "workflow_name": "Staging Configuration Contract",
+      "check_name": "validate-staging-configuration"
     }
   ],
   "rules": {
     "required_checks_must_exist": true,
     "workflow_names_must_match": true,
+    "check_names_must_match_jobs": true,
     "validation_workflows_must_be_read_only": true,
     "live_deployment_must_remain_disabled": true,
     "branch_protection_readiness_must_match_workflows": true,
