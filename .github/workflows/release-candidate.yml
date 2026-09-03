@@ -47,18 +47,10 @@ jobs:
             exit 1
           fi
 
-      - name: Validate deployment checklist contract
+      - name: Validate release candidate semantics
         run: |
-          test -f DEPLOYMENT_CHECKLIST.md
-          grep -q '^## Environment$' DEPLOYMENT_CHECKLIST.md
-          grep -q '^## Database$' DEPLOYMENT_CHECKLIST.md
-          grep -q '^## Storefront QA$' DEPLOYMENT_CHECKLIST.md
-          grep -q '^## Performance$' DEPLOYMENT_CHECKLIST.md
-          grep -q '^## Security / Release Gate$' DEPLOYMENT_CHECKLIST.md
-          grep -q '^## Release Process$' DEPLOYMENT_CHECKLIST.md
-          grep -q 'Deploy to staging first' DEPLOYMENT_CHECKLIST.md
-          grep -q 'Only then schedule production release separately' DEPLOYMENT_CHECKLIST.md
-          grep -q 'No force-push, reset, or direct production deployment from `chatgpt/store-build`' DEPLOYMENT_CHECKLIST.md
+          php -l tests/release_candidate_semantics.php
+          php tests/release_candidate_semantics.php
 
       - name: Validate release handoff audit contract
         run: |
