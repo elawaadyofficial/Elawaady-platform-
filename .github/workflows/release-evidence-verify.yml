@@ -41,6 +41,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          REQUIRED_WORKFLOWS_JSON="$(jq -c '.required_workflows' config/staging-release-manifest.json)"
+          REQUIRED_COUNT="$(jq 'length' <<<"$REQUIRED_WORKFLOWS_JSON")"
+          if [ "$REQUIRED_COUNT" -lt 1 ]; then
+            echo "Staging release manifest does not define required workflows"
+            exit 1
+          fi
+
           download_artifact_by_id() {
             local artifact_id="$1"
             local output_dir="$2"
@@ -61,15 +68,17 @@ jobs:
           INDEX="index/release-evidence-index.json"
           test -f "$INDEX"
 
-          jq -e --arg sha "$CANDIDATE_SHA" '
+          jq -e --arg sha "$CANDIDATE_SHA" --argjson required "$REQUIRED_WORKFLOWS_JSON" '
             .schema_version == 1
             and .candidate_sha == $sha
             and .release_branch == "chatgpt/store-build"
             and .evidence_state == "staging_validation_evidence_complete"
             and .deployment_mode == "validation_only"
             and .production_deploy_allowed == false
-            and (.accepted_workflow_runs | type == "object" and length == 8)
+            and (.accepted_workflow_runs | type == "object")
+            and ((.accepted_workflow_runs | keys | sort) == ($required | sort))
             and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))
+            and ([.accepted_workflow_runs[].head_sha] | all(. == $sha))
             and (.evidence_chain | type == "object" and length == 3)
           ' "$INDEX" >/dev/null
 
