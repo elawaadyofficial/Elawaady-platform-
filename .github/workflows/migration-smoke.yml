@@ -4,13 +4,7 @@ on:
   push:
     branches:
       - chatgpt/store-build
-    paths:
-      - 'migrations/**/*.sql'
-      - '.github/workflows/migration-smoke.yml'
   pull_request:
-    paths:
-      - 'migrations/**/*.sql'
-      - '.github/workflows/migration-smoke.yml'
 
 permissions:
   contents: read
