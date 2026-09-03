@@ -60,6 +60,7 @@ foreach ([
     'migration_runner' => 'migrate.php',
     'preflight' => 'tools/preflight.php',
     'migration_preflight' => 'tools/migration_preflight.php',
+    'staging_rehearsal' => 'tools/staging_rehearsal.sh',
 ] as $field => $expectedPath) {
     if (($runtime[$field] ?? null) !== $expectedPath) {
         fail_repo_governance("runtime authority path changed unexpectedly: {$field}");
@@ -109,9 +110,28 @@ foreach ([
     }
 }
 
+$stagingRehearsal = (string) file_get_contents($root . '/tools/staging_rehearsal.sh');
+foreach ([
+    'development|staging',
+    'live elawaady.com domain is forbidden',
+    'APP_URL must use a loopback host',
+    'php tools/preflight.php',
+    'php tools/migration_preflight.php',
+    'php tools/install.php --admin=admin',
+    'php migrate.php --status',
+    'php migrate.php --dry-run',
+    'http://127.0.0.1:8080/index.php',
+    'staging deployment rehearsal: ok (loopback-only; production untouched)',
+] as $requiredGuard) {
+    if (!str_contains($stagingRehearsal, $requiredGuard)) {
+        fail_repo_governance("staging rehearsal guard is missing: {$requiredGuard}");
+    }
+}
+
 $platformWorkflow = (string) file_get_contents($root . '/.github/workflows/platform-integration.yml');
 foreach ([
-    'php tools/migration_preflight.php',
+    'bash tools/staging_rehearsal.sh',
+    'Rehearsal refuses the live store domain',
     'Verify migration history converged and is idempotent',
     'php migrate.php --status',
     'php migrate.php --dry-run',
@@ -223,4 +243,4 @@ if (in_array('backend_runtime_not_committed', $blockers, true)) {
     fail_repo_governance('legacy Python backend import must not block the authoritative PHP runtime');
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; migration runner=locked; preflights=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; migration runner=locked; preflights=locked; staging rehearsal=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
