@@ -77,6 +77,15 @@ if (!str_contains($workflow, "head_branch == 'chatgpt/store-build'")) {
 if (!str_contains($workflow, 'validation only and never deploys')) {
     fail_contract('workflow validation-only notice is missing');
 }
+if (!str_contains($workflow, 'run.name === name && run.head_sha === sha')) {
+    fail_contract('workflow must require every prerequisite run on the exact candidate SHA');
+}
+if (!str_contains($workflow, 'no completed run found on exact candidate SHA')) {
+    fail_contract('workflow exact-SHA failure path is missing');
+}
+if (str_contains($workflow, 'compareCommits') || str_contains($workflow, 'one of its ancestors') || str_contains($workflow, 'latestApplicable')) {
+    fail_contract('workflow must not reuse ancestor workflow evidence');
+}
 
 $handoff = $manifest['handoff_requirements'];
 foreach ([
