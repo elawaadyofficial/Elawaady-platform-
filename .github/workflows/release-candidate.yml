@@ -95,37 +95,29 @@ jobs:
 
           ACCEPTED_WORKFLOW_RUNS='{}'
           while IFS= read -r WORKFLOW_NAME; do
-            MATCH=''
-            while IFS=$'\t' read -r RUN_ID RUN_SHA RUN_CONCLUSION RUN_URL; do
-              if [ "$RUN_SHA" = "$CANDIDATE_SHA" ]; then
-                MATCH="$(jq -n --argjson id "$RUN_ID" --arg sha "$RUN_SHA" --arg conclusion "$RUN_CONCLUSION" --arg url "$RUN_URL" '{run_id:$id,head_sha:$sha,conclusion:$conclusion,url:$url}')"
-                break
-              fi
-
-              # Backend safety must always be proven on the exact candidate SHA.
-              # Reusing an ancestor run here could certify source that changed later.
-              if [ "$WORKFLOW_NAME" = "Backend production safety gate" ]; then
-                continue
-              fi
-
-              STATUS="$(gh api "repos/$REPO/compare/$RUN_SHA...$CANDIDATE_SHA" --jq '.status' 2>/dev/null || true)"
-              if [ "$STATUS" = "ahead" ] || [ "$STATUS" = "identical" ]; then
-                MATCH="$(jq -n --argjson id "$RUN_ID" --arg sha "$RUN_SHA" --arg conclusion "$RUN_CONCLUSION" --arg url "$RUN_URL" '{run_id:$id,head_sha:$sha,conclusion:$conclusion,url:$url}')"
-                break
-              fi
-            done < <(
-              jq -r --arg name "$WORKFLOW_NAME" \
-                '.workflow_runs | map(select(.name == $name)) | sort_by(.created_at) | reverse[] | [.id,.head_sha,(.conclusion // "unknown"),.html_url] | @tsv' \
-                <<<"$RUNS_JSON"
-            )
+            MATCH="$(
+              jq -c --arg name "$WORKFLOW_NAME" --arg sha "$CANDIDATE_SHA" '
+                .workflow_runs
+                | map(select(.name == $name and .head_sha == $sha))
+                | sort_by(.created_at)
+                | reverse
+                | .[0] // empty
+                | if . == "" then empty else {
+                    run_id: .id,
+                    head_sha: .head_sha,
+                    conclusion: (.conclusion // "unknown"),
+                    url: .html_url
+                  } end
+              ' <<<"$RUNS_JSON"
+            )"
 
             if [ -z "$MATCH" ]; then
-              echo "No completed applicable run found for required workflow: $WORKFLOW_NAME"
+              echo "No completed run on exact candidate SHA $CANDIDATE_SHA for required workflow: $WORKFLOW_NAME"
               exit 1
             fi
 
             if [ "$(jq -r '.conclusion' <<<"$MATCH")" != "success" ]; then
-              echo "Latest applicable run for $WORKFLOW_NAME is not successful"
+              echo "Exact candidate run for $WORKFLOW_NAME is not successful"
               jq . <<<"$MATCH"
               exit 1
             fi
@@ -187,7 +179,7 @@ jobs:
               and .production_deploy_allowed == false
               and ((.accepted_workflow_runs | keys | sort) == ($required | sort))
               and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))
-              and (.accepted_workflow_runs["Backend production safety gate"].head_sha == $sha)' \
+              and ([.accepted_workflow_runs[].head_sha] | all(. == $sha))' \
             release-candidate-handoff.json >/dev/null
 
           cat release-candidate-handoff.json
@@ -206,5 +198,5 @@ jobs:
         run: |
           echo "Release candidate validation passed for $CANDIDATE_SHA"
           echo "An immutable handoff record with accepted CI run IDs was uploaded as a CI artifact."
-          echo "Backend production safety was proven on the exact candidate SHA."
+          echo "Every required workflow was proven successful on the exact candidate SHA."
           echo "This workflow validates readiness only. It does not deploy to staging or production."
