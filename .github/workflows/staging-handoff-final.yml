@@ -64,13 +64,16 @@ jobs:
           set -euo pipefail
 
           ATTESTATION="integrity/release-candidate-integrity.json"
+          MANIFEST="config/staging-release-manifest.json"
           CURRENT_TREE_SHA="$(git rev-parse 'HEAD^{tree}')"
+          CURRENT_MANIFEST_SHA256="$(sha256sum "$MANIFEST" | awk '{print $1}')"
 
-          jq -e --arg sha "$CANDIDATE_SHA" --arg tree "$CURRENT_TREE_SHA" '
+          jq -e --arg sha "$CANDIDATE_SHA" --arg tree "$CURRENT_TREE_SHA" --arg manifest_sha "$CURRENT_MANIFEST_SHA256" '
             .schema_version == 1
             and .candidate_sha == $sha
             and .candidate_tree_sha == $tree
             and (.handoff_sha256 | test("^[0-9a-f]{64}$"))
+            and .staging_manifest_sha256 == $manifest_sha
             and (.migration_checksum_sha256 | test("^[0-9a-f]{64}$"))
             and .integrity_verified == true
             and .release_branch == "chatgpt/store-build"
@@ -93,6 +96,7 @@ jobs:
             --arg candidate_tree_sha "$CURRENT_TREE_SHA" \
             --arg previous_known_good_sha "$PREVIOUS_KNOWN_GOOD_SHA" \
             --arg integrity_sha256 "$INTEGRITY_SHA256" \
+            --arg manifest_sha256 "$CURRENT_MANIFEST_SHA256" \
             --arg migration_checksum "$MIGRATION_CHECKSUM" \
             --arg integrity_run_id "$INTEGRITY_RUN_ID" \
             --arg integrity_artifact_id "$INTEGRITY_ARTIFACT_ID" \
@@ -102,6 +106,7 @@ jobs:
               candidate_tree_sha: $candidate_tree_sha,
               previous_known_good_sha: $previous_known_good_sha,
               integrity_attestation_sha256: $integrity_sha256,
+              staging_manifest_sha256: $manifest_sha256,
               migration_checksum_sha256: $migration_checksum,
               source_integrity_run_id: ($integrity_run_id | tonumber),
               source_integrity_artifact_id: ($integrity_artifact_id | tonumber),
@@ -111,11 +116,12 @@ jobs:
               production_deploy_allowed: false
             }' > staging-final-handoff.json
 
-          jq -e --arg sha "$CANDIDATE_SHA" '
+          jq -e --arg sha "$CANDIDATE_SHA" --arg manifest_sha "$CURRENT_MANIFEST_SHA256" '
             .candidate_sha == $sha
             and (.candidate_tree_sha | test("^[0-9a-f]{40}$"))
             and (.previous_known_good_sha | test("^[0-9a-f]{40}$"))
             and (.integrity_attestation_sha256 | test("^[0-9a-f]{64}$"))
+            and .staging_manifest_sha256 == $manifest_sha
             and (.migration_checksum_sha256 | test("^[0-9a-f]{64}$"))
             and .handoff_state == "staging_validation_ready"
             and .deployment_mode == "validation_only"
