@@ -102,12 +102,14 @@ jobs:
 
           CANDIDATE_TREE_SHA="$(git rev-parse 'HEAD^{tree}')"
           HANDOFF_SHA256="$(sha256sum "$HANDOFF" | awk '{print $1}')"
+          MANIFEST_SHA256="$(sha256sum "$MANIFEST" | awk '{print $1}')"
 
           jq -n \
             --arg schema_version "1" \
             --arg candidate_sha "$CANDIDATE_SHA" \
             --arg candidate_tree_sha "$CANDIDATE_TREE_SHA" \
             --arg handoff_sha256 "$HANDOFF_SHA256" \
+            --arg manifest_sha256 "$MANIFEST_SHA256" \
             --arg migration_checksum "$ACTUAL_MIGRATION_CHECKSUM" \
             --arg release_run_id "$RELEASE_RUN_ID" \
             --arg artifact_id "$ARTIFACT_ID" \
@@ -116,6 +118,7 @@ jobs:
               candidate_sha: $candidate_sha,
               candidate_tree_sha: $candidate_tree_sha,
               handoff_sha256: $handoff_sha256,
+              staging_manifest_sha256: $manifest_sha256,
               migration_checksum_sha256: $migration_checksum,
               source_release_candidate_run_id: ($release_run_id | tonumber),
               source_handoff_artifact_id: ($artifact_id | tonumber),
@@ -129,6 +132,7 @@ jobs:
             .candidate_sha == $sha
             and (.candidate_tree_sha | test("^[0-9a-f]{40}$"))
             and (.handoff_sha256 | test("^[0-9a-f]{64}$"))
+            and (.staging_manifest_sha256 | test("^[0-9a-f]{64}$"))
             and (.migration_checksum_sha256 | test("^[0-9a-f]{64}$"))
             and .integrity_verified == true
             and .deployment_mode == "validation_only"
@@ -150,5 +154,5 @@ jobs:
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           echo "Release handoff integrity verified for $CANDIDATE_SHA"
-          echo "The attestation binds the handoff SHA-256, Git tree SHA, migration checksum, source run, and source artifact ID."
+          echo "The attestation binds the handoff SHA-256, staging manifest SHA-256, Git tree SHA, migration checksum, source run, and source artifact ID."
           echo "This workflow validates release evidence only and has no deployment capability."
