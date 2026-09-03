@@ -58,6 +58,7 @@ foreach ([
     'bootstrap_schema' => 'database.sql',
     'installer' => 'tools/install.php',
     'preflight' => 'tools/preflight.php',
+    'migration_preflight' => 'tools/migration_preflight.php',
 ] as $field => $expectedPath) {
     if (($runtime[$field] ?? null) !== $expectedPath) {
         fail_repo_governance("runtime authority path changed unexpectedly: {$field}");
@@ -77,6 +78,25 @@ foreach ([
     if (!str_contains($preflight, $requiredGuard)) {
         fail_repo_governance("PHP preflight guard is missing: {$requiredGuard}");
     }
+}
+
+$migrationPreflight = (string) file_get_contents($root . '/tools/migration_preflight.php');
+foreach ([
+    "no database connection or SQL execution",
+    "Migration sequence is not contiguous",
+    "DROP\\s+TABLE",
+    "DROP\\s+COLUMN",
+    "TRUNCATE",
+    "DELETE\\s+FROM",
+] as $requiredGuard) {
+    if (!str_contains($migrationPreflight, $requiredGuard)) {
+        fail_repo_governance("migration preflight guard is missing: {$requiredGuard}");
+    }
+}
+
+$platformWorkflow = (string) file_get_contents($root . '/.github/workflows/platform-integration.yml');
+if (!str_contains($platformWorkflow, 'php tools/migration_preflight.php')) {
+    fail_repo_governance('Platform Integration must run migration readiness preflight before database setup');
 }
 
 $checks = $contract['required_checks'] ?? null;
@@ -179,4 +199,4 @@ if (in_array('backend_runtime_not_committed', $blockers, true)) {
     fail_repo_governance('legacy Python backend import must not block the authoritative PHP runtime');
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; preflight=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; preflights=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
