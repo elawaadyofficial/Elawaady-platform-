@@ -7,6 +7,7 @@
     "entrypoint": "index.php",
     "bootstrap_schema": "database.sql",
     "installer": "tools/install.php",
+    "migration_runner": "migrate.php",
     "preflight": "tools/preflight.php",
     "migration_preflight": "tools/migration_preflight.php",
     "python_backend_reference_only": true
