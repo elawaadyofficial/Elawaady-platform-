@@ -7,11 +7,13 @@ on:
     paths:
       - 'config/repository-governance-contract.json'
       - 'tests/repository_governance_contract.php'
+      - 'tests/branch_protection_check_names.php'
       - '.github/workflows/*.yml'
   pull_request:
     paths:
       - 'config/repository-governance-contract.json'
       - 'tests/repository_governance_contract.php'
+      - 'tests/branch_protection_check_names.php'
       - '.github/workflows/*.yml'
 
 permissions:
@@ -27,3 +29,5 @@ jobs:
           persist-credentials: false
       - name: Validate repository governance contract
         run: php tests/repository_governance_contract.php
+      - name: Validate exact branch protection check contexts
+        run: php tests/branch_protection_check_names.php
