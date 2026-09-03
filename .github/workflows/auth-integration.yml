@@ -3,24 +3,6 @@ name: Auth Integration
 on:
   push:
     branches: [chatgpt/store-build]
-    paths:
-      - 'login.php'
-      - 'logout.php'
-      - 'register.php'
-      - 'forgot-password.php'
-      - 'reset-password.php'
-      - 'account.php'
-      - 'supplier-dashboard.php'
-      - 'lib/auth.php'
-      - 'lib/wallet.php'
-      - 'db_connect.php'
-      - 'migrations/005_platform_accounts.sql'
-      - 'migrations/006_rbac.sql'
-      - 'migrations/007_suppliers.sql'
-      - 'migrations/009_orders.sql'
-      - 'migrations/010_wallet_payments.sql'
-      - 'tests/auth_flow.sh'
-      - '.github/workflows/auth-integration.yml'
   workflow_dispatch:
 
 permissions:
