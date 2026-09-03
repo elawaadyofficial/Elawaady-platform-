@@ -10,6 +10,7 @@
     "migration_runner": "migrate.php",
     "preflight": "tools/preflight.php",
     "migration_preflight": "tools/migration_preflight.php",
+    "staging_rehearsal": "tools/staging_rehearsal.sh",
     "python_backend_reference_only": true
   },
   "branch_protection": {
