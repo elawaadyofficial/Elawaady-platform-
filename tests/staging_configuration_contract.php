@@ -175,7 +175,7 @@ foreach ([
     '$allowedInstallEnvironments = [\'development\', \'staging\'];',
     'in_array($env, $allowedInstallEnvironments, true)',
     'APP_ENV must be explicitly set to development or staging',
-    "$host === 'elawaady.com'",
+    '$host === \'elawaady.com\'',
     "str_ends_with(\$host, '.elawaady.com')",
 ] as $installerGuard) {
     if (!str_contains($installer, $installerGuard)) {
