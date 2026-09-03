@@ -60,24 +60,6 @@ jobs:
           extensions: mysqli, mbstring, openssl, curl, fileinfo
           coverage: none
 
-      - name: Read-only PHP staging preflight
-        run: php tools/preflight.php
-
-      - name: Offline migration readiness preflight
-        run: php tools/migration_preflight.php
-
-      - name: Preflight refuses the live store domain
-        shell: bash
-        run: |
-          set -euo pipefail
-          if APP_URL=https://elawaady.com php tools/preflight.php > /tmp/live-preflight.log 2>&1; then
-            echo 'Preflight unexpectedly accepted the live store domain.' >&2
-            cat /tmp/live-preflight.log >&2
-            exit 1
-          fi
-          grep -Fq 'APP_URL points at the live elawaady.com domain' /tmp/live-preflight.log
-          echo 'Live-domain refusal verified without making any network request.'
-
       - name: Static check — every bind_param binds what it declares
         run: php tests/bind_param_check.php
 
@@ -89,28 +71,24 @@ jobs:
           while IFS= read -r -d '' file; do
             php -l "$file" > /dev/null || { echo "Lint failed: $file"; failed=1; }
           done < <(find . -name '*.php' -not -path './.git/*' -not -path './backend/*' -print0)
+          bash -n tools/staging_rehearsal.sh || failed=1
           bash -n tests/checkout_browser_replay.sh || failed=1
           exit $failed
 
-      - name: Install from an empty database
-        run: |
-          printf '%s\n%s\n' "$ADMIN_PASS" "$ADMIN_PASS" | php tools/install.php --admin=admin
+      - name: Isolated staging deployment rehearsal
+        run: bash tools/staging_rehearsal.sh
 
-      - name: Verify migration history converged and is idempotent
+      - name: Rehearsal refuses the live store domain
         shell: bash
         run: |
           set -euo pipefail
-
-          php migrate.php --status | tee /tmp/migration-status.log
-          grep -Eq 'Pending:[[:space:]]+0' /tmp/migration-status.log
-
-          php migrate.php --dry-run | tee /tmp/migration-dry-run.log
-          grep -Fq 'Database is up to date; nothing to apply.' /tmp/migration-dry-run.log
-
-          php migrate.php | tee /tmp/migration-second-run.log
-          grep -Fq 'Database is up to date; nothing to apply.' /tmp/migration-second-run.log
-
-          echo 'Migration history has no drift or pending work; repeated execution is a no-op.'
+          if APP_URL=https://elawaady.com bash tools/staging_rehearsal.sh > /tmp/live-rehearsal.log 2>&1; then
+            echo 'Staging rehearsal unexpectedly accepted the live store domain.' >&2
+            cat /tmp/live-rehearsal.log >&2
+            exit 1
+          fi
+          grep -Fq 'live elawaady.com domain is forbidden' /tmp/live-rehearsal.log
+          echo 'Live-domain refusal verified before any HTTP request.'
 
       - name: Add a limited role to prove permissions are enforced
         run: |
