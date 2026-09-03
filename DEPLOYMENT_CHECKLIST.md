@@ -7,10 +7,11 @@ This branch is for staging/build work only. Do not deploy it over the live `elaw
 - Use `APP_ENV=development` or `APP_ENV=staging` for installer/rehearsal work. `tools/install.php` and `tools/staging_rehearsal.sh` deliberately refuse production mode.
 - Never point staging/install/rehearsal tooling at `elawaady.com` or any `*.elawaady.com` host.
 - `tools/staging_rehearsal.sh` is intentionally loopback-only (`127.0.0.1`, `localhost`, or `::1`) and must remain that way.
-- No force-push, reset, direct production deployment, production database access, or production migration from `chatgpt/store-build`.
+- No force-push, reset, or direct production deployment from `chatgpt/store-build`.
+- No production database access or production migration from `chatgpt/store-build`.
 - Never commit `.env`, database dumps, API keys, payment secrets, webhook secrets, or real credentials.
 
-## Required Runtime
+## Environment
 
 - PHP 8+.
 - Required PHP extensions: `mysqli`, `mbstring`, `openssl`, `curl`, and `fileinfo`.
@@ -104,6 +105,8 @@ Verify:
 - Branch protection/required checks must be enabled before treating the branch as merge-ready.
 
 ## Release Process
+
+Deploy to staging first. Production remains a separate reviewed and explicitly approved release activity.
 
 1. Re-read the latest `chatgpt/store-build` HEAD and confirm the intended SHA.
 2. Confirm all GitHub checks for that SHA are green.
