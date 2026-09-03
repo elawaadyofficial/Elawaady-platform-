@@ -3,23 +3,6 @@ name: Order Wallet Integration
 on:
   push:
     branches: [chatgpt/store-build]
-    paths:
-      - 'service.php'
-      - 'order_create.php'
-      - 'lib/wallet.php'
-      - 'lib/checkout.php'
-      - 'lib/checkout_intent.php'
-      - 'migrations/005_platform_accounts.sql'
-      - 'migrations/009_orders.sql'
-      - 'migrations/010_wallet_payments.sql'
-      - 'migrations/019_checkout_idempotency.sql'
-      - 'tests/order_wallet_flow.php'
-      - 'tests/atomic_checkout_flow.php'
-      - 'tests/checkout_intent_flow.php'
-      - 'tests/checkout_intent_wiring.php'
-      - 'tests/checkout_http_probe.php'
-      - 'tests/checkout_http_flow.sh'
-      - '.github/workflows/order-wallet-integration.yml'
   workflow_dispatch:
 
 permissions:
