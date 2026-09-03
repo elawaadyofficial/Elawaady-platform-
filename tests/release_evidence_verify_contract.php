@@ -17,6 +17,9 @@ $required = [
     "head_branch == 'chatgpt/store-build'",
     'persist-credentials: false',
     'release-evidence-index-$CANDIDATE_SHA',
+    'REQUIRED_WORKFLOWS_JSON="$(jq -c \'.required_workflows\' config/staging-release-manifest.json)"',
+    '(.accepted_workflow_runs | keys | sort) == ($required | sort)',
+    '[.accepted_workflow_runs[].head_sha] | all(. == $sha)',
     "git rev-parse 'HEAD^{tree}'",
     "git ls-files 'migrations/*.sql'",
     '.evidence_chain.release_candidate.sha256',
@@ -46,6 +49,7 @@ $forbidden = [
     'ssh ',
     'scp ',
     'rsync ',
+    'length == 8',
 ];
 
 foreach ($forbidden as $needle) {
