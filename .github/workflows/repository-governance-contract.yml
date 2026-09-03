@@ -10,6 +10,7 @@ on:
       - 'tests/repository_governance_contract.php'
       - 'tests/branch_protection_check_names.php'
       - 'tests/release_candidate_semantics.php'
+      - 'tests/staging_required_workflow_triggers.php'
       - '.github/workflows/*.yml'
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - 'tests/repository_governance_contract.php'
       - 'tests/branch_protection_check_names.php'
       - 'tests/release_candidate_semantics.php'
+      - 'tests/staging_required_workflow_triggers.php'
       - '.github/workflows/*.yml'
 
 permissions:
@@ -37,3 +39,5 @@ jobs:
         run: php tests/branch_protection_check_names.php
       - name: Validate release candidate semantic safety
         run: php tests/release_candidate_semantics.php
+      - name: Validate exact-SHA staging workflow triggers
+        run: php tests/staging_required_workflow_triggers.php
