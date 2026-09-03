@@ -4,17 +4,7 @@ on:
   push:
     branches:
       - chatgpt/store-build
-    paths:
-      - 'index.php'
-      - 'sections.php'
-      - 'exd-layouts.css'
-      - '.github/workflows/homepage-contract.yml'
   pull_request:
-    paths:
-      - 'index.php'
-      - 'sections.php'
-      - 'exd-layouts.css'
-      - '.github/workflows/homepage-contract.yml'
 
 permissions:
   contents: read
