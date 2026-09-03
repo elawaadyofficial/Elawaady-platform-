@@ -57,6 +57,7 @@ foreach ([
     'entrypoint' => 'index.php',
     'bootstrap_schema' => 'database.sql',
     'installer' => 'tools/install.php',
+    'migration_runner' => 'migrate.php',
     'preflight' => 'tools/preflight.php',
     'migration_preflight' => 'tools/migration_preflight.php',
 ] as $field => $expectedPath) {
@@ -94,9 +95,32 @@ foreach ([
     }
 }
 
+$migrationRunner = (string) file_get_contents($root . '/migrate.php');
+foreach ([
+    '--status',
+    '--dry-run',
+    'schema_migrations',
+    'checksum',
+    'Refusing to run: these migrations changed after they were applied.',
+    'Database is up to date; nothing to apply.',
+] as $requiredGuard) {
+    if (!str_contains($migrationRunner, $requiredGuard)) {
+        fail_repo_governance("migration runner guard is missing: {$requiredGuard}");
+    }
+}
+
 $platformWorkflow = (string) file_get_contents($root . '/.github/workflows/platform-integration.yml');
-if (!str_contains($platformWorkflow, 'php tools/migration_preflight.php')) {
-    fail_repo_governance('Platform Integration must run migration readiness preflight before database setup');
+foreach ([
+    'php tools/migration_preflight.php',
+    'Verify migration history converged and is idempotent',
+    'php migrate.php --status',
+    'php migrate.php --dry-run',
+    'Pending:[[:space:]]+0',
+    'Migration history has no drift or pending work; repeated execution is a no-op.',
+] as $requiredIntegrationGuard) {
+    if (!str_contains($platformWorkflow, $requiredIntegrationGuard)) {
+        fail_repo_governance("Platform Integration migration guard is missing: {$requiredIntegrationGuard}");
+    }
 }
 
 $checks = $contract['required_checks'] ?? null;
@@ -199,4 +223,4 @@ if (in_array('backend_runtime_not_committed', $blockers, true)) {
     fail_repo_governance('legacy Python backend import must not block the authoritative PHP runtime');
 }
 
-fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; preflights=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
+fwrite(STDOUT, 'repository governance contract: ok for ' . count($checks) . ' required checks; runtime=php; migration runner=locked; preflights=locked; branch protection ready=' . ($ready ? 'true' : 'false') . "\n");
