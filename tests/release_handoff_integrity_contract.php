@@ -20,6 +20,11 @@ $requiredMarkers = [
     'deployment_mode: "validation_only"',
     'production_deploy_allowed: false',
     'persist-credentials: false',
+    'config/staging-release-manifest.json',
+    '$manifest[0].required_workflows',
+    '.accepted_workflow_runs | keys | sort',
+    '.accepted_workflow_runs[].head_sha',
+    'all(. == $sha)',
 ];
 
 foreach ($requiredMarkers as $marker) {
@@ -36,11 +41,13 @@ $forbiddenMarkers = [
     'kubectl',
     'ssh ',
     'scp ',
+    'length == 8',
+    'length == 10',
 ];
 
 foreach ($forbiddenMarkers as $marker) {
     if (str_contains($workflow, $marker)) {
-        fwrite(STDERR, "release handoff integrity workflow contains forbidden deployment marker: {$marker}\n");
+        fwrite(STDERR, "release handoff integrity workflow contains forbidden deployment or hardcoded-contract marker: {$marker}\n");
         exit(1);
     }
 }
