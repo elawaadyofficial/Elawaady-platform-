@@ -67,9 +67,8 @@ jobs:
               return;
             }
 
-            // Inspect completed runs of every required workflow. Path filters mean a workflow
-            // may legitimately not run on the candidate commit, so the latest applicable run
-            // on the candidate or one of its ancestors becomes authoritative.
+            // Every required workflow must complete successfully on the exact candidate SHA.
+            // Reusing ancestor evidence can hide regressions introduced by the candidate commit.
             const { data } = await github.rest.actions.listWorkflowRunsForRepo({
               owner,
               repo,
@@ -78,52 +77,26 @@ jobs:
               per_page: 100,
             });
 
-            const candidates = new Map(required.map(name => [name, []]));
-            for (const run of data.workflow_runs) {
-              if (required.includes(run.name)) candidates.get(run.name).push(run);
-            }
-
             const accepted = new Map();
             const failures = [];
 
             for (const name of required) {
-              const runs = candidates.get(name)
+              const runs = data.workflow_runs
+                .filter(run => run.name === name && run.head_sha === sha)
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-              let latestApplicable = null;
-              for (const run of runs) {
-                if (run.head_sha === sha) {
-                  latestApplicable = run;
-                  break;
-                }
-
-                try {
-                  const comparison = await github.rest.repos.compareCommits({
-                    owner,
-                    repo,
-                    base: run.head_sha,
-                    head: sha,
-                  });
-                  if (comparison.data.status === 'ahead' || comparison.data.status === 'identical') {
-                    latestApplicable = run;
-                    break;
-                  }
-                } catch (error) {
-                  core.debug(`Unable to compare ${run.head_sha} to ${sha}: ${error.message}`);
-                }
-              }
-
-              if (!latestApplicable) {
-                failures.push(`${name}: no completed run found on this commit or an ancestor`);
+              const latestExact = runs[0] || null;
+              if (!latestExact) {
+                failures.push(`${name}: no completed run found on exact candidate SHA ${sha}`);
                 continue;
               }
 
-              if (latestApplicable.conclusion !== 'success') {
-                failures.push(`${name}: latest applicable run ${latestApplicable.id} at ${latestApplicable.head_sha} concluded ${latestApplicable.conclusion || 'unknown'}`);
+              if (latestExact.conclusion !== 'success') {
+                failures.push(`${name}: run ${latestExact.id} on ${sha} concluded ${latestExact.conclusion || 'unknown'}`);
                 continue;
               }
 
-              accepted.set(name, latestApplicable);
+              accepted.set(name, latestExact);
             }
 
             if (failures.length) {
@@ -132,6 +105,6 @@ jobs:
             }
 
             for (const [name, run] of accepted) {
-              core.info(`${name}: accepted latest applicable successful run ${run.id} at ${run.head_sha}`);
+              core.info(`${name}: accepted successful run ${run.id} on exact candidate SHA ${run.head_sha}`);
             }
             core.notice(`Staging prerequisites are green for ${sha}. This workflow performs validation only and never deploys.`);
