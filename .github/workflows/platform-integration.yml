@@ -96,6 +96,22 @@ jobs:
         run: |
           printf '%s\n%s\n' "$ADMIN_PASS" "$ADMIN_PASS" | php tools/install.php --admin=admin
 
+      - name: Verify migration history converged and is idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          php migrate.php --status | tee /tmp/migration-status.log
+          grep -Eq 'Pending:[[:space:]]+0' /tmp/migration-status.log
+
+          php migrate.php --dry-run | tee /tmp/migration-dry-run.log
+          grep -Fq 'Database is up to date; nothing to apply.' /tmp/migration-dry-run.log
+
+          php migrate.php | tee /tmp/migration-second-run.log
+          grep -Fq 'Database is up to date; nothing to apply.' /tmp/migration-second-run.log
+
+          echo 'Migration history has no drift or pending work; repeated execution is a no-op.'
+
       - name: Add a limited role to prove permissions are enforced
         run: |
           printf '%s\n%s\n' "$SUPPORT_PASS" "$SUPPORT_PASS" \
