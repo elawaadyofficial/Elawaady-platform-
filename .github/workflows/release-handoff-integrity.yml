@@ -56,7 +56,7 @@ jobs:
 
           echo "ARTIFACT_ID=$ARTIFACT_ID" >> "$GITHUB_ENV"
 
-      - name: Verify handoff binds to candidate and migrations
+      - name: Verify handoff binds to candidate, manifest, and migrations
         env:
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
           RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -64,15 +64,19 @@ jobs:
           set -euo pipefail
 
           HANDOFF="release-handoff/release-candidate-handoff.json"
+          MANIFEST="config/staging-release-manifest.json"
 
-          jq -e --arg sha "$CANDIDATE_SHA" '
-            .schema_version == 2
+          jq -e --arg sha "$CANDIDATE_SHA" --slurpfile manifest "$MANIFEST" '
+            ($manifest[0].required_workflows | sort) as $required
+            | .schema_version == 2
             and .candidate_sha == $sha
             and .release_branch == "chatgpt/store-build"
             and .deployment_mode == "validation_only"
             and .production_deploy_allowed == false
-            and (.accepted_workflow_runs | type == "object" and length == 8)
+            and (.accepted_workflow_runs | type == "object")
+            and ((.accepted_workflow_runs | keys | sort) == $required)
             and ([.accepted_workflow_runs[].conclusion] | all(. == "success"))
+            and ([.accepted_workflow_runs[].head_sha] | all(. == $sha))
           ' "$HANDOFF" >/dev/null
 
           mapfile -t MIGRATION_FILES < <(git ls-files 'migrations/*.sql' | sort)
